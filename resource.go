@@ -2,6 +2,7 @@ package link
 
 import (
 	"crypto/sha1"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -401,4 +402,27 @@ func HarvestResource(origURLtext string, cleanCurationTargetRule CleanResourcePa
 // HarvestResourceWithDefaults creates a Resource from a given URL using default rules
 func HarvestResourceWithDefaults(origURLtext string) *Resource {
 	return HarvestResource(origURLtext, defaultCleanURLsRegExList, defaultIgnoreURLsRegExList, true)
+}
+
+// GetResourceURL returns the "final URL" for the given resource or returns a single error if unable to get it
+func GetResourceURL(resource *Resource) (*url.URL, error) {
+	if resource == nil {
+		return nil, errors.New("resource is nil")
+	}
+	isIgnored, ignoreReason := resource.IsIgnored()
+	if isIgnored {
+		return nil, fmt.Errorf("ignoring %q: %v", resource.OriginalURLText(), ignoreReason)
+	}
+	isURLValid, isDestValid := resource.IsValid()
+	if !isURLValid || !isDestValid {
+		return nil, fmt.Errorf("URL %q issue, isURLValid: %v, isDestValid: %v", resource.OriginalURLText(), isURLValid, isDestValid)
+	}
+	finalURL, _, _ := resource.GetURLs()
+	if finalURL == nil {
+		return nil, fmt.Errorf("resource %q finalURL is nil", resource.OriginalURLText())
+	}
+	if len(finalURL.String()) == 0 {
+		return nil, fmt.Errorf("resource %q finalURL is empty string", resource.OriginalURLText())
+	}
+	return finalURL, nil
 }
