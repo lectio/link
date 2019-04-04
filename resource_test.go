@@ -19,7 +19,7 @@ func (suite *LinkSuite) SetupSuite() {
 func (suite *LinkSuite) TearDownSuite() {
 }
 
-func (suite *LinkSuite) harvestSingleURLFromMockTweet(text string, urlText string) *HarvestedResource {
+func (suite *LinkSuite) harvestSingleURLFromMockTweet(text string, urlText string) *Resource {
 	// false for followHTMLRedirect because we need to test the features in the suite; in production it would be true
 	hr := HarvestResource(urlText, defaultCleanURLsRegExList, defaultIgnoreURLsRegExList, false)
 	suite.NotNil(hr, "The harvested resources should not be Nil")

@@ -216,14 +216,14 @@ func (c InspectedContent) IsHTMLRedirect() (bool, string) {
 	return c.isHTMLRedirect, c.metaRefreshTagContentURLText
 }
 
-// HarvestedResource tracks a single URL that was curated or discovered in content.
+// Resource tracks a single URL that was curated or discovered in content.
 // Discovered URLs are validated, follow their redirects, and may have
 // query parameters "cleaned" (if instructed).
-type HarvestedResource struct {
+type Resource struct {
 	// TODO consider adding source information (e.g. tweet, e-mail, etc.) and embed style (e.g. text, HTML <a> tag, etc.)
 	harvestedOn       time.Time
 	origURLtext       string
-	origResource      *HarvestedResource
+	origResource      *Resource
 	isURLValid        bool
 	isDestValid       bool
 	httpStatusCode    int
@@ -239,41 +239,41 @@ type HarvestedResource struct {
 }
 
 // OriginalURLText returns the URL as it was discovered, with no alterations
-func (r *HarvestedResource) OriginalURLText() string {
+func (r *Resource) OriginalURLText() string {
 	return r.origURLtext
 }
 
 // ReferredByResource returns the original resource that referred this one,
 // which is only non-nil when this resource was an HTML (not HTTP) redirect
-func (r *HarvestedResource) ReferredByResource() *HarvestedResource {
+func (r *Resource) ReferredByResource() *Resource {
 	return r.origResource
 }
 
 // IsValid indicates whether (a) the original URL was parseable and (b) whether
 // the destination is valid -- meaning not a 404 or something else
-func (r *HarvestedResource) IsValid() (bool, bool) {
+func (r *Resource) IsValid() (bool, bool) {
 	return r.isURLValid, r.isDestValid
 }
 
 // IsIgnored indicates whether the URL should be ignored based on harvesting rules.
 // Discovered URLs may be ignored for a variety of reasons using a list of Regexps.
-func (r *HarvestedResource) IsIgnored() (bool, string) {
+func (r *Resource) IsIgnored() (bool, string) {
 	return r.isURLIgnored, r.ignoreReason
 }
 
 // IsCleaned indicates whether URL query parameters were removed and the new "cleaned" URL
-func (r *HarvestedResource) IsCleaned() (bool, *url.URL) {
+func (r *Resource) IsCleaned() (bool, *url.URL) {
 	return r.isURLCleaned, r.cleanedURL
 }
 
 // GetURLs returns the final (most useful), originally resolved, and "cleaned" URLs
-func (r *HarvestedResource) GetURLs() (*url.URL, *url.URL, *url.URL) {
+func (r *Resource) GetURLs() (*url.URL, *url.URL, *url.URL) {
 	return r.finalURL, r.resolvedURL, r.cleanedURL
 }
 
 // IsHTMLRedirect returns true if redirect was requested through via <meta http-equiv='refresh' content='delay;url='>
 // For an explanation, please see http://redirectdetective.com/redirection-types.html
-func (r *HarvestedResource) IsHTMLRedirect() (bool, string) {
+func (r *Resource) IsHTMLRedirect() (bool, string) {
 	ir := r.inspectionResults
 	if ir != nil {
 		return ir.IsHTMLRedirect()
@@ -282,12 +282,12 @@ func (r *HarvestedResource) IsHTMLRedirect() (bool, string) {
 }
 
 // InspectionResults returns the inspected or downloaded content
-func (r HarvestedResource) InspectionResults() *InspectedContent {
+func (r Resource) InspectionResults() *InspectedContent {
 	return r.inspectionResults
 }
 
 // GloballyUniqueKey returns a hash for the URL that can uniquely identify this resource
-func (r HarvestedResource) GloballyUniqueKey() string {
+func (r Resource) GloballyUniqueKey() string {
 	return r.globallyUniqueKey
 }
 
@@ -324,10 +324,10 @@ func cleanResource(url *url.URL, rule CleanResourceParamsRule) (bool, *url.URL) 
 	return false, nil
 }
 
-// HarvestResource creates a HarvestedResource from a given URL and curation rules
+// HarvestResource creates a Resource from a given URL and curation rules
 func HarvestResource(origURLtext string, cleanCurationTargetRule CleanResourceParamsRule, ignoreCurationTargetRule IgnoreResourceRule,
-	followHTMLRedirect FollowRedirectsInCurationTargetHTMLPayload) *HarvestedResource {
-	result := new(HarvestedResource)
+	followHTMLRedirect FollowRedirectsInCurationTargetHTMLPayload) *Resource {
+	result := new(Resource)
 	result.origURLtext = origURLtext
 	result.harvestedOn = time.Now()
 
@@ -398,7 +398,7 @@ func HarvestResource(origURLtext string, cleanCurationTargetRule CleanResourcePa
 	return result
 }
 
-// HarvestResourceWithDefaults creates a HarvestedResource from a given URL using default rules
-func HarvestResourceWithDefaults(origURLtext string) *HarvestedResource {
+// HarvestResourceWithDefaults creates a Resource from a given URL using default rules
+func HarvestResourceWithDefaults(origURLtext string) *Resource {
 	return HarvestResource(origURLtext, defaultCleanURLsRegExList, defaultIgnoreURLsRegExList, true)
 }
