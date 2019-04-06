@@ -267,6 +267,11 @@ func (r *Resource) IsCleaned() (bool, *url.URL) {
 	return r.isURLCleaned, r.cleanedURL
 }
 
+// FinalURL returns the fully resolved, "final" URL (after redirects and all other rules are processed)
+func (r *Resource) FinalURL() *url.URL {
+	return r.finalURL
+}
+
 // GetURLs returns the final (most useful), originally resolved, and "cleaned" URLs
 func (r *Resource) GetURLs() (*url.URL, *url.URL, *url.URL) {
 	return r.finalURL, r.resolvedURL, r.cleanedURL
