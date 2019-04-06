@@ -2,7 +2,6 @@ package link
 
 import (
 	"crypto/sha1"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -267,9 +266,23 @@ func (r *Resource) IsCleaned() (bool, *url.URL) {
 	return r.isURLCleaned, r.cleanedURL
 }
 
-// FinalURL returns the fully resolved, "final" URL (after redirects and all other rules are processed)
-func (r *Resource) FinalURL() *url.URL {
-	return r.finalURL
+// FinalURL returns the fully resolved, "final" URL (after redirects and all other rules are processed) or an error
+func (r *Resource) FinalURL() (*url.URL, error) {
+	isIgnored, ignoreReason := r.IsIgnored()
+	if isIgnored {
+		return nil, fmt.Errorf("ignoring %q: %v", r.OriginalURLText(), ignoreReason)
+	}
+	isURLValid, isDestValid := r.IsValid()
+	if !isURLValid || !isDestValid {
+		return nil, fmt.Errorf("URL %q issue, isURLValid: %v, isDestValid: %v", r.OriginalURLText(), isURLValid, isDestValid)
+	}
+	if r.finalURL == nil {
+		return nil, fmt.Errorf("resource %q finalURL is nil", r.OriginalURLText())
+	}
+	if len(r.finalURL.String()) == 0 {
+		return nil, fmt.Errorf("resource %q finalURL is empty string", r.OriginalURLText())
+	}
+	return r.finalURL, nil
 }
 
 // GetURLs returns the final (most useful), originally resolved, and "cleaned" URLs
@@ -407,27 +420,4 @@ func HarvestResource(origURLtext string, cleanCurationTargetRule CleanResourcePa
 // HarvestResourceWithDefaults creates a Resource from a given URL using default rules
 func HarvestResourceWithDefaults(origURLtext string) *Resource {
 	return HarvestResource(origURLtext, defaultCleanURLsRegExList, defaultIgnoreURLsRegExList, true)
-}
-
-// GetResourceURL returns the "final URL" for the given resource or returns a single error if unable to get it
-func GetResourceURL(resource *Resource) (*url.URL, error) {
-	if resource == nil {
-		return nil, errors.New("resource is nil")
-	}
-	isIgnored, ignoreReason := resource.IsIgnored()
-	if isIgnored {
-		return nil, fmt.Errorf("ignoring %q: %v", resource.OriginalURLText(), ignoreReason)
-	}
-	isURLValid, isDestValid := resource.IsValid()
-	if !isURLValid || !isDestValid {
-		return nil, fmt.Errorf("URL %q issue, isURLValid: %v, isDestValid: %v", resource.OriginalURLText(), isURLValid, isDestValid)
-	}
-	finalURL, _, _ := resource.GetURLs()
-	if finalURL == nil {
-		return nil, fmt.Errorf("resource %q finalURL is nil", resource.OriginalURLText())
-	}
-	if len(finalURL.String()) == 0 {
-		return nil, fmt.Errorf("resource %q finalURL is empty string", resource.OriginalURLText())
-	}
-	return finalURL, nil
 }
