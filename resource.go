@@ -339,7 +339,7 @@ func HarvestResource(origURLtext string, cleanCurationTargetRule CleanResourcePa
 	if result.isURLValid == false {
 		result.isDestValid = false
 		result.isURLIgnored = true
-		result.ignoreReason = fmt.Sprintf("Invalid URL '%s'", origURLtext)
+		result.ignoreReason = fmt.Sprintf("Invalid URL %q (%v)", origURLtext, err)
 		return result
 	}
 
