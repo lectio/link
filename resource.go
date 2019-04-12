@@ -19,8 +19,8 @@ import (
 	"golang.org/x/net/html"
 )
 
-// DownloadedContent manages any content that was downloaded for further inspection
-type DownloadedContent struct {
+// Attachment manages any content that was downloaded for further inspection
+type Attachment struct {
 	url           *url.URL
 	destPath      string
 	downloadError error
@@ -28,27 +28,33 @@ type DownloadedContent struct {
 	fileType      types.Type
 }
 
-// Delete removes the file that was downloaded
-func (dc *DownloadedContent) Delete() {
-	os.Remove(dc.destPath)
+// IsValid returns true if there are no errors
+func (a Attachment) IsValid() bool {
+	if a.downloadError != nil {
+		return false
+	}
+	if a.fileTypeError != nil {
+		return false
+	}
+
+	return true
 }
 
-// downloadContent will download a url to a local file. It's efficient because it will
-// write as it downloads and not load the whole file into memory.
-func downloadContent(url *url.URL, resp *http.Response) *DownloadedContent {
-	destFile, err := ioutil.TempFile(os.TempDir(), "harvester-dl-")
+// Delete removes the file that was downloaded
+func (a *Attachment) Delete() {
+	os.Remove(a.destPath)
+}
 
-	result := new(DownloadedContent)
+// download will download the URL as an "attachment" to a local file.
+// It's efficient because it will write as it downloads and not load the whole file into memory.
+func downloadFile(url *url.URL, resp *http.Response, destFile *os.File) *Attachment {
+	result := new(Attachment)
 	result.url = url
-	if err != nil {
-		result.downloadError = err
-		return result
-	}
 
 	defer destFile.Close()
 	defer resp.Body.Close()
 	result.destPath = destFile.Name()
-	_, err = io.Copy(destFile, resp.Body)
+	_, err := io.Copy(destFile, resp.Body)
 	if err != nil {
 		result.downloadError = err
 		return result
@@ -80,6 +86,34 @@ func downloadContent(url *url.URL, resp *http.Response) *DownloadedContent {
 	return result
 }
 
+// downloadTemp will download the URL as an "attachment" to a temporary file.
+func downloadTemp(url *url.URL, resp *http.Response, tempPattern string) *Attachment {
+	destFile, err := ioutil.TempFile(os.TempDir(), tempPattern)
+
+	if err != nil {
+		result := new(Attachment)
+		result.url = url
+		result.downloadError = err
+		return result
+	}
+
+	return downloadFile(url, resp, destFile)
+}
+
+// download will download the URL as an "attachment" to named file.
+func download(url *url.URL, resp *http.Response, pathAndFileName string) *Attachment {
+	destFile, err := os.Create(pathAndFileName)
+
+	if err != nil {
+		result := new(Attachment)
+		result.url = url
+		result.downloadError = err
+		return result
+	}
+
+	return downloadFile(url, resp, destFile)
+}
+
 // InspectedContent manages the kind of content was inspected
 type InspectedContent struct {
 	url                          *url.URL
@@ -87,15 +121,16 @@ type InspectedContent struct {
 	mediaType                    string
 	mediaTypeParams              map[string]string
 	mediaTypeError               error
+	htmlParsed                   bool
 	htmlParseError               error
 	isHTMLRedirect               bool
 	metaRefreshTagContentURLText string            // if IsHTMLRedirect is true, then this is the value after url= in something like <meta http-equiv='refresh' content='delay;url='>
 	metaPropertyTags             map[string]string // if IsHTML() is true, a collection of all meta data like <meta property="og:site_name" content="Netspective" /> or <meta name="twitter:title" content="text" />
-	downloaded                   *DownloadedContent
+	attachment                   *Attachment
 }
 
 // InspectCurationTarget will figure out what kind of destination content we're dealing with
-func inspectContent(url *url.URL, resp *http.Response) *InspectedContent {
+func inspectContent(url *url.URL, resp *http.Response, destRule DestinationRule) *InspectedContent {
 	result := new(InspectedContent)
 	result.metaPropertyTags = make(map[string]string)
 	result.url = url
@@ -105,15 +140,23 @@ func inspectContent(url *url.URL, resp *http.Response) *InspectedContent {
 		if result.mediaTypeError != nil {
 			return result
 		}
-		if result.IsHTML() {
+		if result.IsHTML() && (destRule.FollowRedirectsInDestinationHTMLContent(url) || destRule.ParseMetaDataInDestinationHTMLContent(url)) {
 			result.parsePageMetaData(url, resp)
+			result.htmlParsed = true
 			return result
 		}
 	}
 
-	// If we get to here it means that we need to download the content to inspect it.
+	// If we get to here it means that we need to download the content to inspect it any further.
 	// We download it first because it's possible we want to retain it for later use.
-	result.downloaded = downloadContent(url, resp)
+	downloadAttachment, destFileName := destRule.DownloadAttachmentsFromDestination(url)
+	if downloadAttachment {
+		if len(destFileName) == 0 {
+			result.attachment = downloadTemp(url, resp, "link-attachment-")
+		} else {
+			result.attachment = download(url, resp, destFileName)
+		}
+	}
 	return result
 }
 
@@ -170,19 +213,14 @@ func (c *InspectedContent) parsePageMetaData(url *url.URL, resp *http.Response) 
 	return nil
 }
 
-// IsValid returns true if this there are no errors
+// IsValid returns true if there are no errors
 func (c InspectedContent) IsValid() bool {
 	if c.mediaTypeError != nil {
 		return false
 	}
 
-	if c.downloaded != nil {
-		if c.downloaded.downloadError != nil {
-			return false
-		}
-		if c.downloaded.fileTypeError != nil {
-			return false
-		}
+	if c.attachment != nil {
+		return c.attachment.IsValid()
 	}
 
 	return true
@@ -205,15 +243,15 @@ func (c InspectedContent) GetTwitterMetaTag(key string) (string, bool) {
 	return result, ok
 }
 
-// WasDownloaded returns true if content was downloaded for inspection
-func (c InspectedContent) WasDownloaded() bool {
-	return c.downloaded != nil
-}
-
 // IsHTMLRedirect returns true if redirect was requested through via <meta http-equiv='refresh' content='delay;url='>
 // For an explanation, please see http://redirectdetective.com/redirection-types.html
 func (c InspectedContent) IsHTMLRedirect() (bool, string) {
 	return c.isHTMLRedirect, c.metaRefreshTagContentURLText
+}
+
+// WasDownloaded returns true if content was downloaded
+func (c InspectedContent) WasDownloaded() bool {
+	return c.attachment != nil
 }
 
 // Resource tracks a single URL that was curated or discovered in content.
@@ -345,7 +383,7 @@ func cleanResource(url *url.URL, rule CleanResourceParamsRule) (bool, *url.URL) 
 
 // HarvestResource creates a Resource from a given URL and curation rules
 func HarvestResource(origURLtext string, cleanCurationTargetRule CleanResourceParamsRule, ignoreCurationTargetRule IgnoreResourceRule,
-	followHTMLRedirect FollowRedirectsInCurationTargetHTMLPayload) *Resource {
+	destRule DestinationRule) *Resource {
 	result := new(Resource)
 	result.origURLtext = origURLtext
 	result.harvestedOn = time.Now()
@@ -390,8 +428,6 @@ func HarvestResource(origURLtext string, cleanCurationTargetRule CleanResourcePa
 		result.isURLCleaned = false
 	}
 
-	result.inspectionResults = inspectContent(result.finalURL, resp)
-
 	h := sha1.New()
 	if result.isDestValid {
 		h.Write([]byte(result.finalURL.String()))
@@ -401,14 +437,16 @@ func HarvestResource(origURLtext string, cleanCurationTargetRule CleanResourcePa
 	bs := h.Sum(nil)
 	result.globallyUniqueKey = fmt.Sprintf("%x", bs)
 
+	result.inspectionResults = inspectContent(result.finalURL, resp, destRule)
+
 	// TODO once the URL is cleaned, double-check the cleaned URL to see if it's a valid destination; if not, revert to non-cleaned version
 	// this could be done recursively here or by the outer function. This is necessary because "cleaning" a URL and removing params might
 	// break it so we need to revert to original.
 
-	if followHTMLRedirect {
+	if destRule.FollowRedirectsInDestinationHTMLContent(result.finalURL) {
 		isHTMLRedirect, htmlRedirectURL := result.IsHTMLRedirect()
 		if isHTMLRedirect {
-			redirected := HarvestResource(htmlRedirectURL, cleanCurationTargetRule, ignoreCurationTargetRule, followHTMLRedirect)
+			redirected := HarvestResource(htmlRedirectURL, cleanCurationTargetRule, ignoreCurationTargetRule, destRule)
 			redirected.origResource = result
 			return redirected
 		}
@@ -417,7 +455,7 @@ func HarvestResource(origURLtext string, cleanCurationTargetRule CleanResourcePa
 	return result
 }
 
-// HarvestResourceWithDefaults creates a Resource from a given URL using default rules
-func HarvestResourceWithDefaults(origURLtext string) *Resource {
-	return HarvestResource(origURLtext, defaultCleanURLsRegExList, defaultIgnoreURLsRegExList, true)
+// HarvestResourceWithConfig creates a Resource from a given URL using configuration structure
+func HarvestResourceWithConfig(origURLtext string, config *Configuration) *Resource {
+	return HarvestResource(origURLtext, config, config, config)
 }

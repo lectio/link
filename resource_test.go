@@ -20,8 +20,11 @@ func (suite *LinkSuite) TearDownSuite() {
 }
 
 func (suite *LinkSuite) harvestSingleURLFromMockTweet(text string, urlText string) *Resource {
+	config := MakeConfiguration()
+	config.DownloadLinkAttachments = true
 	// false for followHTMLRedirect because we need to test the features in the suite; in production it would be true
-	hr := HarvestResource(urlText, defaultCleanURLsRegExList, defaultIgnoreURLsRegExList, false)
+	config.FollowHTMLRedirects = false
+	hr := HarvestResourceWithConfig(urlText, config)
 	suite.NotNil(hr, "The harvested resources should not be Nil")
 	return hr
 }
@@ -94,7 +97,10 @@ func (suite *LinkSuite) TestResolvedURLRedirectedThroughHTMLProperly() {
 	suite.NotNil(hr.InspectionResults(), "Inspection results should be available")
 
 	// at this point we want to get the "new" (redirected) and test it
-	redirectedHR := HarvestResource("http://bit.ly/lectio_harvester_resource_test03", defaultCleanURLsRegExList, defaultIgnoreURLsRegExList, true)
+	config := MakeConfiguration()
+	config.FollowHTMLRedirects = true
+	config.DownloadLinkAttachments = true
+	redirectedHR := HarvestResourceWithConfig("http://bit.ly/lectio_harvester_resource_test03", config)
 	suite.NotNil(redirectedHR.ReferredByResource(), hr, "The referral resource should be the same as the original")
 	isURLValid, isDestValid = redirectedHR.IsValid()
 	suite.True(isURLValid, "Redirected URL should be formatted validly")
@@ -206,14 +212,14 @@ func (suite *LinkSuite) TestResolvedDocumentURLNotCleaned() {
 	suite.NotNil(content, "The destination content should be available")
 	suite.True(content.IsValid(), "The destination content should be valid")
 	suite.True(content.WasDownloaded(), "Because the destination wasn't HTML, it should have been downloaded")
-	suite.Equal(content.downloaded.fileType.Extension, "pdf")
+	suite.Equal(content.attachment.fileType.Extension, "pdf")
 
 	fileExists := false
-	if _, err := os.Stat(content.downloaded.destPath); err == nil {
+	if _, err := os.Stat(content.attachment.destPath); err == nil {
 		fileExists = true
 	}
-	suite.True(fileExists, "File %s should exist", content.downloaded.destPath)
-	suite.Equal(path.Ext(content.downloaded.destPath), ".pdf", "File's extension should be .pdf")
+	suite.True(fileExists, "File %s should exist", content.attachment.destPath)
+	suite.Equal(path.Ext(content.attachment.destPath), ".pdf", "File's extension should be .pdf")
 }
 
 func TestSuite(t *testing.T) {
