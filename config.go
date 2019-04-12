@@ -6,15 +6,15 @@ import (
 	"regexp"
 )
 
-// IgnoreResourceRule indicates whether a given URL should be ignored or harvested
-type IgnoreResourceRule interface {
-	IgnoreResource(url *url.URL) (bool, string)
+// IgnoreLinkRule indicates whether a given URL should be ignored or harvested
+type IgnoreLinkRule interface {
+	IgnoreLink(url *url.URL) (bool, string)
 }
 
-// CleanResourceParamsRule indicates whether a specific URL parameter should be "cleaned" (removed)
-type CleanResourceParamsRule interface {
-	CleanResourceParams(url *url.URL) bool
-	RemoveQueryParamFromResourceURL(paramName string) (bool, string)
+// CleanLinkParamsRule indicates whether a specific URL parameter should be "cleaned" (removed)
+type CleanLinkParamsRule interface {
+	CleanLinkParams(url *url.URL) bool
+	RemoveQueryParamFromLinkURL(paramName string) (bool, string)
 }
 
 // DestinationRule indicates whether we want to perform any destination actions
@@ -63,8 +63,8 @@ func (c Configuration) DownloadAttachmentsFromDestination(url *url.URL) (bool, s
 	return false, c.LinkAttachmentsStorePath
 }
 
-// IgnoreResource returns true (and a reason) if the given url should be ignored by the harvester
-func (c Configuration) IgnoreResource(url *url.URL) (bool, string) {
+// IgnoreLink returns true (and a reason) if the given url should be ignored by the harvester
+func (c Configuration) IgnoreLink(url *url.URL) (bool, string) {
 	URLtext := url.String()
 	for _, regEx := range c.IgnoreURLsRegExprs {
 		if regEx.MatchString(URLtext) {
@@ -74,14 +74,14 @@ func (c Configuration) IgnoreResource(url *url.URL) (bool, string) {
 	return false, ""
 }
 
-// CleanResourceParams returns true if the given url's query string param should be "cleaned" by the harvester
-func (c Configuration) CleanResourceParams(url *url.URL) bool {
+// CleanLinkParams returns true if the given url's query string param should be "cleaned" by the harvester
+func (c Configuration) CleanLinkParams(url *url.URL) bool {
 	// we try to clean all URLs, not specific ones
 	return true
 }
 
-// RemoveQueryParamFromResourceURL returns true (and a reason) if the given url's specific query string param should be "cleaned" by the harvester
-func (c Configuration) RemoveQueryParamFromResourceURL(paramName string) (bool, string) {
+// RemoveQueryParamFromLinkURL returns true (and a reason) if the given url's specific query string param should be "cleaned" by the harvester
+func (c Configuration) RemoveQueryParamFromLinkURL(paramName string) (bool, string) {
 	for _, regEx := range c.RemoveParamsFromURLsRegEx {
 		if regEx.MatchString(paramName) {
 			return true, fmt.Sprintf("Matched cleaner rule `%s`", regEx.String())
