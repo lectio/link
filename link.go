@@ -1,7 +1,6 @@
 package link
 
 import (
-	"crypto/sha1"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -25,7 +24,6 @@ type Link struct {
 	ResolvedURL         *url.URL  `json:"resolvedURL"`
 	CleanedURL          *url.URL  `json:"cleanedURL"`
 	FinalizedURL        *url.URL  `json:"finalizedURL"`
-	GloballyUniqueKey   string    `json:"globallyUniqueKey"`
 	Content             *Content  `json:"content"`
 }
 
@@ -134,15 +132,6 @@ func HarvestLink(origURLtext string, cleanCurationTargetRule CleanLinkParamsRule
 	} else {
 		result.AreURLParamsCleaned = false
 	}
-
-	h := sha1.New()
-	if result.IsDestValid {
-		h.Write([]byte(result.FinalizedURL.String()))
-	} else {
-		h.Write([]byte(origURLtext))
-	}
-	bs := h.Sum(nil)
-	result.GloballyUniqueKey = fmt.Sprintf("%x", bs)
 
 	result.Content = MakeContent(result.FinalizedURL, resp, destRule)
 
