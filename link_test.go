@@ -129,30 +129,6 @@ func (suite *LinkSuite) TestResolvedURLCleanedKeys() {
 	suite.Equal(hr.GloballyUniqueKey, "c3ac941bc19188497805cbe583ff8d122ac663d6")
 }
 
-/*
-func (suite *LinkSuite) TestResolvedURLCleanedSerializer() {
-	hr := suite.harvestSingleURLFromMockTweet("Test a good URL %s which will redirect to a URL we want to ignore, with utm_* params", "http://bit.ly/lectio_harvester_resource_test02")
-	isURLValid, isDestValid := hr.IsValid()
-	suite.True(hr.IsURLValid, "URL should be formatted validly")
-	suite.True(hr.IsDestValid, "URL should have valid destination")
-	isIgnored, _ := hr.IsIgnored()
-	suite.False(hr.IsURLIgnored, "URL should not be ignored")
-	AreURLParamsCleaned, _ := hr.IsCleaned()
-	suite.True(AreURLParamsCleaned, "URL should be 'cleaned'")
-	finalURL, resolvedURL, cleanedURL := hr.GetURLs()
-	suite.Equal(resolvedURL.String(), "https://www.netspective.com/solutions/opsfolio/?utm_source=lectio_harvester_resource_test.go&utm_medium=go.TestSuite&utm_campaign=harvester.LinkSuite")
-	suite.Equal(cleanedURL.String(), "https://www.netspective.com/solutions/opsfolio/")
-	suite.Equal(finalURL.String(), cleanedURL.String(), "finalURL should be same as cleanedURL")
-
-	suite.NotNil(hr.Content, "Inspection results should be available")
-
-	err := suite.harvested.Serialize(suite.serializer)
-	suite.NoError(err, "Serialization should have occurred without error")
-
-	_, found := suite.markdown[finalURL.String()]
-	suite.True(found, "Markdown should have been serialized")
-}
-*/
 func (suite *LinkSuite) TestResolvedURLNotCleaned() {
 	hr := suite.harvestSingleURLFromMockTweet("Test a good URL %s which will redirect to a URL we want to ignore", "https://t.co/ELrZmo81wI")
 	suite.True(hr.IsURLValid, "URL should be formatted validly")
