@@ -14,7 +14,7 @@ type IgnoreLinkRule interface {
 // CleanLinkParamsRule indicates whether a specific URL parameter should be "cleaned" (removed)
 type CleanLinkParamsRule interface {
 	CleanLinkParams(url *url.URL) bool
-	RemoveQueryParamFromLinkURL(paramName string) (bool, string)
+	RemoveQueryParamFromLinkURL(url *url.URL, paramName string) (bool, string)
 }
 
 // DestinationRule indicates whether we want to perform any destination actions
@@ -81,10 +81,10 @@ func (c Configuration) CleanLinkParams(url *url.URL) bool {
 }
 
 // RemoveQueryParamFromLinkURL returns true (and a reason) if the given url's specific query string param should be "cleaned" by the harvester
-func (c Configuration) RemoveQueryParamFromLinkURL(paramName string) (bool, string) {
+func (c Configuration) RemoveQueryParamFromLinkURL(url *url.URL, paramName string) (bool, string) {
 	for _, regEx := range c.RemoveParamsFromURLsRegEx {
 		if regEx.MatchString(paramName) {
-			return true, fmt.Sprintf("Matched cleaner rule `%s`", regEx.String())
+			return true, fmt.Sprintf("Matched cleaner rule %q: %q", regEx.String(), url.String())
 		}
 	}
 

@@ -72,7 +72,7 @@ func cleanLink(url *url.URL, rule CleanLinkParamsRule) (bool, *url.URL) {
 	}
 	var cleanedParams []ParamMatch
 	for paramName := range harvestedParams {
-		remove, reason := rule.RemoveQueryParamFromLinkURL(paramName)
+		remove, reason := rule.RemoveQueryParamFromLinkURL(url, paramName)
 		if remove {
 			harvestedParams.Del(paramName)
 			cleanedParams = append(cleanedParams, ParamMatch{paramName, reason})
