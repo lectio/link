@@ -95,6 +95,7 @@ func HarvestLink(origURLtext string, cleanCurationTargetRule CleanLinkParamsRule
 
 	// Use the standard Go HTTP library method to retrieve the Content; the
 	// default will automatically follow redirects (e.g. HTTP redirects)
+	// TODO: Consider using [HTTP Cache](https://github.com/gregjones/httpcache)
 	resp, err := http.Get(origURLtext)
 	result.IsURLValid = err == nil
 	if result.IsURLValid == false {
