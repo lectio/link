@@ -69,7 +69,7 @@ func (c fileCache) Get(urlText string) (*link.Link, error) {
 }
 
 func (c fileCache) Find(urlText string) (*link.Link, bool, bool, error) {
-	key := c.keys.LinkKeyForURLText(urlText)
+	key := c.keys.PrimaryKeyForURLText(urlText)
 	fileName := path.Join(c.path, key+c.extension)
 	if _, err := os.Stat(fileName); os.IsNotExist(err) {
 		return nil, false, true, nil
@@ -99,7 +99,7 @@ func (c fileCache) Save(link *link.Link, autoExpire time.Duration) error {
 	if marshErr != nil {
 		return marshErr
 	}
-	return ioutil.WriteFile(path.Join(c.path, c.keys.LinkKey(link)+c.extension), linkJSON, c.perm)
+	return ioutil.WriteFile(path.Join(c.path, link.PrimaryKey(c.keys)+c.extension), linkJSON, c.perm)
 }
 
 func (c fileCache) Close() error {

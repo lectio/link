@@ -44,6 +44,15 @@ func (r *Link) FinalURL() (*url.URL, error) {
 	return r.FinalizedURL, nil
 }
 
+// PrimaryKey returns the primary key for this URL
+func (r Link) PrimaryKey(keys Keys) string {
+	if r.IsDestValid && r.FinalizedURL != nil {
+		return keys.PrimaryKeyForURLText(r.FinalizedURL.String())
+	} else {
+		return keys.PrimaryKeyForURLText(r.OrigURLText)
+	}
+}
+
 // IsHTMLRedirect returns true if redirect was requested through via <meta http-equiv='refresh' Content='delay;url='>
 // For an explanation, please see http://redirectdetective.com/redirection-types.html
 func (r *Link) IsHTMLRedirect() (bool, string) {
