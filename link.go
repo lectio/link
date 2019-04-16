@@ -2,10 +2,35 @@ package link
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"time"
 )
+
+// Lifecycle defines common creation / destruction methods
+type Lifecycle interface {
+	HarvestLink(urlText string) (*Link, error)
+}
+
+// Reader defines common reader methods
+type Reader interface {
+	GetLink(urlText string) (*Link, error)
+	HasLink(urlText string) (bool, error)
+}
+
+// Writer defines common writer methods
+type Writer interface {
+	WriteLink(*Link) error
+	DeleteLink(*Link) error
+}
+
+// Store pulls together all the lifecyle, reader, and writer methods
+type Store interface {
+	Reader
+	Writer
+	io.Closer
+}
 
 // Link tracks a single URL that was curated or discovered in Content.
 // Discovered URLs are validated, follow their redirects, and may have
