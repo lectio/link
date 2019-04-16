@@ -60,6 +60,11 @@ type HarvestedLink struct {
 	Content             *Content       `json:"content"`
 }
 
+// OriginalURLText returns the URL text that was parsed
+func (r HarvestedLink) OriginalURLText() string {
+	return r.OrigURLText
+}
+
 // FinalURL returns the fully resolved, "final" URL (after redirects, cleaning, ignoring, and all other rules are processed) or an error
 func (r *HarvestedLink) FinalURL() (*url.URL, error) {
 	if r.IsURLIgnored {
@@ -78,12 +83,12 @@ func (r *HarvestedLink) FinalURL() (*url.URL, error) {
 }
 
 // URLStructureValid returns true if the URL was properly parsed (does not indicate whether the destination is valid, though)
-func (r *HarvestedLink) URLStructureValid() bool {
+func (r HarvestedLink) URLStructureValid() bool {
 	return r.IsURLValid
 }
 
 // DestinationValid returns true if the URL's format is valid and the destination was reachable
-func (r *HarvestedLink) DestinationValid() bool {
+func (r HarvestedLink) DestinationValid() bool {
 	return r.IsDestValid
 }
 
