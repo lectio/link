@@ -8,21 +8,29 @@ import (
 	"time"
 )
 
+// Link is the public interface for a "smart URL" which knows its destination
+type Link interface {
+	OriginalURLText() string
+	FinalURL() (*url.URL, error)
+	URLStructureValid() bool
+	DestinationValid() bool
+}
+
 // Lifecycle defines common creation / destruction methods
 type Lifecycle interface {
-	HarvestLink(urlText string) (*Link, error)
+	HarvestLink(urlText string) (Link, error)
 }
 
 // Reader defines common reader methods
 type Reader interface {
-	GetLink(urlText string) (*Link, error)
+	GetLink(urlText string) (Link, error)
 	HasLink(urlText string) (bool, error)
 }
 
 // Writer defines common writer methods
 type Writer interface {
-	WriteLink(*Link) error
-	DeleteLink(*Link) error
+	WriteLink(Link) error
+	DeleteLink(Link) error
 }
 
 // Store pulls together all the lifecyle, reader, and writer methods
@@ -32,28 +40,28 @@ type Store interface {
 	io.Closer
 }
 
-// Link tracks a single URL that was curated or discovered in Content.
+// HarvestedLink tracks a single URL that was curated or discovered in Content.
 // Discovered URLs are validated, follow their redirects, and may have
 // query parameters "cleaned" (if instructed).
-type Link struct {
+type HarvestedLink struct {
 	// TODO consider adding source information (e.g. tweet, e-mail, etc.) and embed style (e.g. text, HTML <a> tag, etc.)
-	HarvestedOn         time.Time `json:"harvestedOn,omitempty"`
-	OrigURLText         string    `json:"origURLtext"`
-	OrigLink            *Link     `json:"origLink,omitempty"`
-	IsURLValid          bool      `json:"isURLValid"`
-	IsDestValid         bool      `json:"isDestValid"`
-	HTTPStatusCode      int       `json:"httpStatusCode"`
-	IsURLIgnored        bool      `json:"isURLIgnored"`
-	IgnoreReason        string    `json:"ignoreReason"`
-	AreURLParamsCleaned bool      `json:"areURLParamsCleaned"`
-	ResolvedURL         *url.URL  `json:"resolvedURL"`
-	CleanedURL          *url.URL  `json:"cleanedURL"`
-	FinalizedURL        *url.URL  `json:"finalizedURL"`
-	Content             *Content  `json:"content"`
+	HarvestedOn         time.Time      `json:"harvestedOn,omitempty"`
+	OrigURLText         string         `json:"origURLtext"`
+	OrigLink            *HarvestedLink `json:"origLink,omitempty"`
+	IsURLValid          bool           `json:"isURLStructureValid"`
+	IsDestValid         bool           `json:"isDestinationValid"`
+	HTTPStatusCode      int            `json:"httpStatusCode"`
+	IsURLIgnored        bool           `json:"isURLIgnored"`
+	IgnoreReason        string         `json:"ignoreReason"`
+	AreURLParamsCleaned bool           `json:"areURLParamsCleaned"`
+	ResolvedURL         *url.URL       `json:"resolvedURL"`
+	CleanedURL          *url.URL       `json:"cleanedURL"`
+	FinalizedURL        *url.URL       `json:"finalizedURL"`
+	Content             *Content       `json:"content"`
 }
 
 // FinalURL returns the fully resolved, "final" URL (after redirects, cleaning, ignoring, and all other rules are processed) or an error
-func (r *Link) FinalURL() (*url.URL, error) {
+func (r *HarvestedLink) FinalURL() (*url.URL, error) {
 	if r.IsURLIgnored {
 		return nil, fmt.Errorf("ignoring %q: %v", r.OrigURLText, r.IgnoreReason)
 	}
@@ -61,16 +69,26 @@ func (r *Link) FinalURL() (*url.URL, error) {
 		return nil, fmt.Errorf("URL %q issue, IsURLValid: %v, IsDestValid: %v", r.OrigURLText, r.IsURLValid, r.IsDestValid)
 	}
 	if r.FinalizedURL == nil {
-		return nil, fmt.Errorf("Link %q FinalizedURL is nil", r.OrigURLText)
+		return nil, fmt.Errorf("HarvestedLink %q FinalizedURL is nil", r.OrigURLText)
 	}
 	if len(r.FinalizedURL.String()) == 0 {
-		return nil, fmt.Errorf("Link %q FinalizedURL is empty string", r.OrigURLText)
+		return nil, fmt.Errorf("HarvestedLink %q FinalizedURL is empty string", r.OrigURLText)
 	}
 	return r.FinalizedURL, nil
 }
 
+// URLStructureValid returns true if the URL was properly parsed (does not indicate whether the destination is valid, though)
+func (r *HarvestedLink) URLStructureValid() bool {
+	return r.IsURLValid
+}
+
+// DestinationValid returns true if the URL's format is valid and the destination was reachable
+func (r *HarvestedLink) DestinationValid() bool {
+	return r.IsDestValid
+}
+
 // PrimaryKey returns the primary key for this URL
-func (r Link) PrimaryKey(keys Keys) string {
+func (r HarvestedLink) PrimaryKey(keys Keys) string {
 	if r.IsDestValid && r.FinalizedURL != nil {
 		return keys.PrimaryKeyForURLText(r.FinalizedURL.String())
 	} else {
@@ -80,7 +98,7 @@ func (r Link) PrimaryKey(keys Keys) string {
 
 // IsHTMLRedirect returns true if redirect was requested through via <meta http-equiv='refresh' Content='delay;url='>
 // For an explanation, please see http://redirectdetective.com/redirection-types.html
-func (r *Link) IsHTMLRedirect() (bool, string) {
+func (r *HarvestedLink) IsHTMLRedirect() (bool, string) {
 	if r.Content != nil {
 		return r.Content.IsContentBasedRedirect()
 	}
@@ -120,10 +138,10 @@ func cleanLink(url *url.URL, rule CleanLinkParamsRule) (bool, *url.URL) {
 	return false, nil
 }
 
-// HarvestLink creates a Link from a given URL and curation rules
+// HarvestLink creates a HarvestedLink from a given URL and curation rules
 func HarvestLink(origURLtext string, cleanCurationTargetRule CleanLinkParamsRule, ignoreCurationTargetRule IgnoreLinkRule,
-	destRule DestinationRule) *Link {
-	result := new(Link)
+	destRule DestinationRule) *HarvestedLink {
+	result := new(HarvestedLink)
 	result.OrigURLText = origURLtext
 	result.HarvestedOn = time.Now()
 
@@ -186,7 +204,7 @@ func HarvestLink(origURLtext string, cleanCurationTargetRule CleanLinkParamsRule
 	return result
 }
 
-// HarvestLinkWithConfig creates a Link from a given URL using configuration structure
-func HarvestLinkWithConfig(OrigURLtext string, config *Configuration) *Link {
+// HarvestLinkWithConfig creates a HarvestedLink from a given URL using configuration structure
+func HarvestLinkWithConfig(OrigURLtext string, config *Configuration) *HarvestedLink {
 	return HarvestLink(OrigURLtext, config, config, config)
 }

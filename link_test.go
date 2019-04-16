@@ -21,7 +21,7 @@ func (suite *LinkSuite) SetupSuite() {
 func (suite *LinkSuite) TearDownSuite() {
 }
 
-func (suite *LinkSuite) harvestSingleURLFromMockTweet(text string, urlText string) *Link {
+func (suite *LinkSuite) harvestSingleURLFromMockTweet(text string, urlText string) *HarvestedLink {
 	config := MakeConfiguration()
 	config.DownloadLinkAttachments = true
 	// false for followHTMLRedirect because we need to test the features in the suite; in production it would be true
