@@ -11,9 +11,11 @@ import (
 // Link is the public interface for a "smart URL" which knows its destination
 type Link interface {
 	OriginalURLText() string
+	PrimaryKey(keys Keys) string
 	FinalURL() (*url.URL, error)
 	URLStructureValid() bool
 	DestinationValid() bool
+	Ignore() (bool, string)
 }
 
 // Lifecycle defines common creation / destruction methods
@@ -90,6 +92,11 @@ func (r HarvestedLink) URLStructureValid() bool {
 // DestinationValid returns true if the URL's format is valid and the destination was reachable
 func (r HarvestedLink) DestinationValid() bool {
 	return r.IsDestValid
+}
+
+// Ignore returns true if the URL should be ignored an a string for the reason
+func (r HarvestedLink) Ignore() (bool, string) {
+	return r.IsURLIgnored, r.IgnoreReason
 }
 
 // PrimaryKey returns the primary key for this URL
