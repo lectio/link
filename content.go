@@ -26,7 +26,7 @@ type Content struct {
 }
 
 // MakeContent will figure out what kind of destination content we're dealing with
-func MakeContent(url *url.URL, resp *http.Response, destRule DestinationRule) *Content {
+func MakeContent(url *url.URL, resp *http.Response, destRule DestinationPolicy) *Content {
 	result := new(Content)
 	result.MetaPropertyTags = make(map[string]string)
 	result.URL = url

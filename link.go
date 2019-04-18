@@ -12,7 +12,7 @@ import (
 type Link interface {
 	OriginalURLText() string
 	PrimaryKey(keys Keys) string
-	FinalURL() (*url.URL, error)
+	FinalURL() (*url.URL, Error)
 	URLStructureValid() bool
 	DestinationValid() bool
 	Ignore() (bool, string)
@@ -68,18 +68,18 @@ func (r HarvestedLink) OriginalURLText() string {
 }
 
 // FinalURL returns the fully resolved, "final" URL (after redirects, cleaning, ignoring, and all other rules are processed) or an error
-func (r *HarvestedLink) FinalURL() (*url.URL, error) {
+func (r *HarvestedLink) FinalURL() (*url.URL, Error) {
+	if !r.IsURLValid {
+		return nil, newError(r, URLStructureInvalidErrorCode, r.IgnoreReason)
+	}
+	if !r.IsDestValid {
+		return nil, newError(r, URLDestinationInvalidErrorCode, r.IgnoreReason)
+	}
 	if r.IsURLIgnored {
-		return nil, fmt.Errorf("ignoring %q: %v", r.OrigURLText, r.IgnoreReason)
+		return nil, newError(r, MatchesIgnorePolicyErrorCode, r.IgnoreReason)
 	}
-	if !r.IsURLValid || !r.IsDestValid {
-		return nil, fmt.Errorf("URL %q issue, IsURLValid: %v, IsDestValid: %v", r.OrigURLText, r.IsURLValid, r.IsDestValid)
-	}
-	if r.FinalizedURL == nil {
-		return nil, fmt.Errorf("HarvestedLink %q FinalizedURL is nil", r.OrigURLText)
-	}
-	if len(r.FinalizedURL.String()) == 0 {
-		return nil, fmt.Errorf("HarvestedLink %q FinalizedURL is empty string", r.OrigURLText)
+	if r.FinalizedURL == nil || len(r.FinalizedURL.String()) == 0 {
+		return nil, newError(r, FinalURLNilOrEmptyErrorCode, "FinalURL is nil or empty")
 	}
 	return r.FinalizedURL, nil
 }
@@ -103,9 +103,8 @@ func (r HarvestedLink) Ignore() (bool, string) {
 func (r HarvestedLink) PrimaryKey(keys Keys) string {
 	if r.IsDestValid && r.FinalizedURL != nil {
 		return keys.PrimaryKeyForURLText(r.FinalizedURL.String())
-	} else {
-		return keys.PrimaryKeyForURLText(r.OrigURLText)
 	}
+	return keys.PrimaryKeyForURLText(r.OrigURLText)
 }
 
 // IsHTMLRedirect returns true if redirect was requested through via <meta http-equiv='refresh' Content='delay;url='>
@@ -118,7 +117,7 @@ func (r *HarvestedLink) IsHTMLRedirect() (bool, string) {
 }
 
 // cleanLink checks to see if there are any parameters that should be removed (e.g. UTM_*)
-func cleanLink(url *url.URL, rule CleanLinkParamsRule) (bool, *url.URL) {
+func cleanLink(url *url.URL, rule CleanLinkQueryParamsPolicy) (bool, *url.URL) {
 	if !rule.CleanLinkParams(url) {
 		return false, nil
 	}
@@ -151,8 +150,8 @@ func cleanLink(url *url.URL, rule CleanLinkParamsRule) (bool, *url.URL) {
 }
 
 // HarvestLink creates a HarvestedLink from a given URL and curation rules
-func HarvestLink(origURLtext string, cleanCurationTargetRule CleanLinkParamsRule, ignoreCurationTargetRule IgnoreLinkRule,
-	destRule DestinationRule) *HarvestedLink {
+func HarvestLink(origURLtext string, cleanCurationTargetRule CleanLinkQueryParamsPolicy, ignoreCurationTargetRule IgnoreLinkPolicy,
+	destRule DestinationPolicy) *HarvestedLink {
 	result := new(HarvestedLink)
 	result.OrigURLText = origURLtext
 	result.HarvestedOn = time.Now()

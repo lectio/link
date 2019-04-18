@@ -6,19 +6,19 @@ import (
 	"regexp"
 )
 
-// IgnoreLinkRule indicates whether a given URL should be ignored or harvested
-type IgnoreLinkRule interface {
+// IgnoreLinkPolicy indicates whether a given URL should be ignored or harvested
+type IgnoreLinkPolicy interface {
 	IgnoreLink(url *url.URL) (bool, string)
 }
 
-// CleanLinkParamsRule indicates whether a specific URL parameter should be "cleaned" (removed)
-type CleanLinkParamsRule interface {
+// CleanLinkQueryParamsPolicy indicates whether a specific URL parameter should be "cleaned" (removed)
+type CleanLinkQueryParamsPolicy interface {
 	CleanLinkParams(url *url.URL) bool
 	RemoveQueryParamFromLinkURL(url *url.URL, paramName string) (bool, string)
 }
 
-// DestinationRule indicates whether we want to perform any destination actions
-type DestinationRule interface {
+// DestinationPolicy indicates whether we want to perform any destination actions
+type DestinationPolicy interface {
 	FollowRedirectsInDestinationHTMLContent(url *url.URL) bool
 	ParseMetaDataInDestinationHTMLContent(url *url.URL) bool
 	DownloadAttachmentsFromDestination(url *url.URL) (bool, string)
