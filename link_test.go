@@ -36,10 +36,10 @@ func (suite *LinkSuite) TestInvalidlyFormattedURLs() {
 	suite.False(hr.IsURLValid, "URL should have invalid format")
 	suite.False(hr.IsDestValid, "URL should have invalid destination")
 	suite.Nil(hr.Content, "No content should be available")
-	_, err := hr.FinalURL()
-	suite.NotNil(err, "Ensure error is returned")
-	suite.Equal(URLStructureInvalidErrorCode, err.ErrorCode(), "Ensure proper error code")
-	suite.NotEqual(URLDestinationInvalidErrorCode, err.ErrorCode(), "Ensure proper error code")
+	_, issue := hr.FinalURL()
+	suite.NotNil(issue, "Ensure issue is returned")
+	suite.Equal(URLStructureInvalid, issue.IssueCode(), "Ensure proper issue code")
+	suite.NotEqual(URLDestinationInvalid, issue.IssueCode(), "Ensure proper issue code")
 }
 
 func (suite *LinkSuite) TestInvalidDestinationURLs() {

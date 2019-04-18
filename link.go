@@ -12,7 +12,7 @@ import (
 type Link interface {
 	OriginalURLText() string
 	PrimaryKey(keys Keys) string
-	FinalURL() (*url.URL, Error)
+	FinalURL() (*url.URL, Issue)
 	URLStructureValid() bool
 	DestinationValid() bool
 	Ignore() (bool, string)
@@ -68,18 +68,18 @@ func (r HarvestedLink) OriginalURLText() string {
 }
 
 // FinalURL returns the fully resolved, "final" URL (after redirects, cleaning, ignoring, and all other rules are processed) or an error
-func (r *HarvestedLink) FinalURL() (*url.URL, Error) {
+func (r *HarvestedLink) FinalURL() (*url.URL, Issue) {
 	if !r.IsURLValid {
-		return nil, newError(r, URLStructureInvalidErrorCode, r.IgnoreReason)
+		return nil, newIssue(r, URLStructureInvalid, r.IgnoreReason, true)
 	}
 	if !r.IsDestValid {
-		return nil, newError(r, URLDestinationInvalidErrorCode, r.IgnoreReason)
+		return nil, newIssue(r, URLDestinationInvalid, r.IgnoreReason, true)
 	}
 	if r.IsURLIgnored {
-		return nil, newError(r, MatchesIgnorePolicyErrorCode, r.IgnoreReason)
+		return nil, newIssue(r, MatchesIgnorePolicy, r.IgnoreReason, false)
 	}
 	if r.FinalizedURL == nil || len(r.FinalizedURL.String()) == 0 {
-		return nil, newError(r, FinalURLNilOrEmptyErrorCode, "FinalURL is nil or empty")
+		return nil, newIssue(r, FinalURLNilOrEmpty, "FinalURL is nil or empty", true)
 	}
 	return r.FinalizedURL, nil
 }
