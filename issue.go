@@ -21,17 +21,16 @@ type Issue interface {
 
 // Issues packages multiple issues into a container
 type Issues interface {
-	Issues() []Issue
+	ErrorsAndWarnings() []Issue
 	IssueCounts() (uint, uint, uint)
 	HandleIssues(errorHandler func(Issue), warningHandler func(Issue))
 }
 
 type issue struct {
-	context  *HarvestedLink
-	code     IssueCode
-	message  string
-	isError  bool
-	children []Issue
+	context *HarvestedLink
+	code    IssueCode
+	message string
+	isError bool
 }
 
 func newIssue(link *HarvestedLink, code IssueCode, message string, isError bool) Issue {

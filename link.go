@@ -67,8 +67,13 @@ func (r HarvestedLink) OriginalURL() string {
 	return r.OrigURLText
 }
 
-// Issues contains the problems in this link plus satisfies the Link.Issues interface
-func (r HarvestedLink) Issues() []Issue {
+// Issues contains the problems in this link plus satisfies the Link interface
+func (r HarvestedLink) Issues() Issues {
+	return r
+}
+
+// ErrorsAndWarnings contains the problems in this link plus satisfies the Link.Issues interface
+func (r HarvestedLink) ErrorsAndWarnings() []Issue {
 	return r.AllIssues
 }
 
