@@ -3,10 +3,10 @@ package link
 type IssueCode string
 
 const (
-	MatchesIgnorePolicy   IssueCode = "LINKW-0100"
-	URLStructureInvalid   IssueCode = "LINKE-0200"
-	URLDestinationInvalid IssueCode = "LINKE-0201"
-	FinalURLNilOrEmpty    IssueCode = "LINKE-0300"
+	MatchesIgnorePolicy       IssueCode = "LINKW-0100"
+	URLStructureInvalid       IssueCode = "LINKE-0200"
+	InvalidHTTPRespStatusCode IssueCode = "LINKE-0201"
+	FinalURLNilOrEmpty        IssueCode = "LINKE-0300"
 )
 
 // Issue is a structured problem identification with context information
@@ -19,11 +19,19 @@ type Issue interface {
 	IsWarning() bool // this issue is a warning
 }
 
+// Issues packages multiple issues into a container
+type Issues interface {
+	Issues() []Issue
+	IssueCounts() (uint, uint, uint)
+	HandleIssues(errorHandler func(Issue), warningHandler func(Issue))
+}
+
 type issue struct {
-	context *HarvestedLink
-	code    IssueCode
-	message string
-	isError bool
+	context  *HarvestedLink
+	code     IssueCode
+	message  string
+	isError  bool
+	children []Issue
 }
 
 func newIssue(link *HarvestedLink, code IssueCode, message string, isError bool) Issue {

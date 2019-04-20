@@ -10,29 +10,28 @@ import (
 
 // Link is the public interface for a "smart URL" which knows its destination
 type Link interface {
-	OriginalURLText() string
+	OriginalURL() string
 	PrimaryKey(keys Keys) string
+	Issues() Issues
 	FinalURL() (*url.URL, Issue)
-	URLStructureValid() bool
-	DestinationValid() bool
 	Ignore() (bool, string)
 }
 
 // Lifecycle defines common creation / destruction methods
 type Lifecycle interface {
-	HarvestLink(urlText string) (Link, error)
+	HarvestLink(urlText string) (Link, Issue)
 }
 
 // Reader defines common reader methods
 type Reader interface {
-	GetLink(urlText string) (Link, error)
-	HasLink(urlText string) (bool, error)
+	GetLink(urlText string) (Link, Issue)
+	HasLink(urlText string) (bool, Issue)
 }
 
 // Writer defines common writer methods
 type Writer interface {
-	WriteLink(Link) error
-	DeleteLink(Link) error
+	WriteLink(Link) Issue
+	DeleteLink(Link) Issue
 }
 
 // Store pulls together all the lifecyle, reader, and writer methods
@@ -60,24 +59,52 @@ type HarvestedLink struct {
 	CleanedURL          *url.URL       `json:"cleanedURL"`
 	FinalizedURL        *url.URL       `json:"finalizedURL"`
 	Content             *Content       `json:"content"`
+	AllIssues           []Issue        `json:"issues"`
 }
 
-// OriginalURLText returns the URL text that was parsed
-func (r HarvestedLink) OriginalURLText() string {
+// OriginalURL returns the URL text that was parsed
+func (r HarvestedLink) OriginalURL() string {
 	return r.OrigURLText
+}
+
+// Issues contains the problems in this link plus satisfies the Link.Issues interface
+func (r HarvestedLink) Issues() []Issue {
+	return r.AllIssues
+}
+
+// IssueCounts returns the total, errors, and warnings counts
+func (r HarvestedLink) IssueCounts() (uint, uint, uint) {
+	if r.AllIssues == nil {
+		return 0, 0, 0
+	}
+	var errors, warnings uint
+	for _, i := range r.AllIssues {
+		if i.IsError() {
+			errors++
+		} else {
+			warnings++
+		}
+	}
+	return uint(len(r.AllIssues)), errors, warnings
+}
+
+// HandleIssues loops through each issue and calls a particular handler
+func (r HarvestedLink) HandleIssues(errorHandler func(Issue), warningHandler func(Issue)) {
+	if r.AllIssues == nil {
+		return
+	}
+	for _, i := range r.AllIssues {
+		if i.IsError() && errorHandler != nil {
+			errorHandler(i)
+		}
+		if i.IsWarning() && warningHandler != nil {
+			warningHandler(i)
+		}
+	}
 }
 
 // FinalURL returns the fully resolved, "final" URL (after redirects, cleaning, ignoring, and all other rules are processed) or an error
 func (r *HarvestedLink) FinalURL() (*url.URL, Issue) {
-	if !r.IsURLValid {
-		return nil, newIssue(r, URLStructureInvalid, r.IgnoreReason, true)
-	}
-	if !r.IsDestValid {
-		return nil, newIssue(r, URLDestinationInvalid, r.IgnoreReason, true)
-	}
-	if r.IsURLIgnored {
-		return nil, newIssue(r, MatchesIgnorePolicy, r.IgnoreReason, false)
-	}
 	if r.FinalizedURL == nil || len(r.FinalizedURL.String()) == 0 {
 		return nil, newIssue(r, FinalURLNilOrEmpty, "FinalURL is nil or empty", true)
 	}
@@ -164,7 +191,8 @@ func HarvestLink(origURLtext string, cleanCurationTargetRule CleanLinkQueryParam
 	if result.IsURLValid == false {
 		result.IsDestValid = false
 		result.IsURLIgnored = true
-		result.IgnoreReason = fmt.Sprintf("Invalid URL %q (%v)", origURLtext, err)
+		result.IgnoreReason = fmt.Sprintf("URL parse error: %v", err)
+		result.AllIssues = append(result.AllIssues, newIssue(result, URLStructureInvalid, result.IgnoreReason, true))
 		return result
 	}
 
@@ -172,7 +200,8 @@ func HarvestLink(origURLtext string, cleanCurationTargetRule CleanLinkQueryParam
 	if result.HTTPStatusCode != 200 {
 		result.IsDestValid = false
 		result.IsURLIgnored = true
-		result.IgnoreReason = fmt.Sprintf("Invalid HTTP Status Code %d", resp.StatusCode)
+		result.IgnoreReason = fmt.Sprintf("Invalid HTTP Response Status Code: %d", resp.StatusCode)
+		result.AllIssues = append(result.AllIssues, newIssue(result, InvalidHTTPRespStatusCode, result.IgnoreReason, true))
 		return result
 	}
 
@@ -183,6 +212,7 @@ func HarvestLink(origURLtext string, cleanCurationTargetRule CleanLinkQueryParam
 		result.IsDestValid = true
 		result.IsURLIgnored = true
 		result.IgnoreReason = ignoreReason
+		result.AllIssues = append(result.AllIssues, newIssue(result, MatchesIgnorePolicy, result.IgnoreReason, false))
 		return result
 	}
 

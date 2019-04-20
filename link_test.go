@@ -36,10 +36,15 @@ func (suite *LinkSuite) TestInvalidlyFormattedURLs() {
 	suite.False(hr.IsURLValid, "URL should have invalid format")
 	suite.False(hr.IsDestValid, "URL should have invalid destination")
 	suite.Nil(hr.Content, "No content should be available")
+
+	issues, errors, warnings := hr.IssueCounts()
+	suite.Equal(uint(1), issues, "Ensure proper issues count")
+	suite.Equal(uint(1), errors, "Ensure proper errors count")
+	suite.Equal(uint(0), warnings, "Ensure proper warnings count")
+
 	_, issue := hr.FinalURL()
 	suite.NotNil(issue, "Ensure issue is returned")
-	suite.Equal(URLStructureInvalid, issue.IssueCode(), "Ensure proper issue code")
-	suite.NotEqual(URLDestinationInvalid, issue.IssueCode(), "Ensure proper issue code")
+	suite.Equal(FinalURLNilOrEmpty, issue.IssueCode(), "Ensure proper issue code")
 }
 
 func (suite *LinkSuite) TestInvalidDestinationURLs() {
@@ -48,6 +53,15 @@ func (suite *LinkSuite) TestInvalidDestinationURLs() {
 	suite.False(hr.IsDestValid, "URL should have invalid destination")
 	suite.Equal(hr.HTTPStatusCode, 404)
 	suite.Nil(hr.Content, "No content should be available")
+
+	issues, errors, warnings := hr.IssueCounts()
+	suite.Equal(uint(1), issues, "Ensure proper issues count")
+	suite.Equal(uint(1), errors, "Ensure proper errors count")
+	suite.Equal(uint(0), warnings, "Ensure proper warnings count")
+
+	_, issue := hr.FinalURL()
+	suite.NotNil(issue, "Ensure issue is returned")
+	suite.Equal(FinalURLNilOrEmpty, issue.IssueCode(), "Ensure proper issue code")
 }
 
 func (suite *LinkSuite) TestSimplifiedHostnames() {
@@ -82,6 +96,15 @@ func (suite *LinkSuite) TestIgnoreRules() {
 	suite.True(hr.IsURLIgnored, "URL should be ignored (skipped)")
 	suite.Equal(hr.IgnoreReason, "Matched Ignore Rule `^https://twitter.com/(.*?)/status/(.*)$`")
 	suite.Nil(hr.Content, "No content should be available")
+
+	issues, errors, warnings := hr.IssueCounts()
+	suite.Equal(uint(1), issues, "Ensure proper issues count")
+	suite.Equal(uint(0), errors, "Ensure proper errors count")
+	suite.Equal(uint(1), warnings, "Ensure proper warnings count")
+
+	finalURL, issue := hr.FinalURL()
+	suite.Nil(issue, "Ensure there is no issue")
+	suite.Equal("https://twitter.com/Live5News/status/993220120402161664/photo/1", finalURL.String())
 }
 
 func (suite *LinkSuite) TestResolvedURLRedirectedThroughHTMLProperly() {
