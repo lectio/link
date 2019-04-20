@@ -206,7 +206,7 @@ func HarvestLink(origURLtext string, cleanCurationTargetRule CleanLinkQueryParam
 		result.IsDestValid = false
 		result.IsURLIgnored = true
 		result.IgnoreReason = fmt.Sprintf("Invalid HTTP Response Status Code: %d", resp.StatusCode)
-		result.AllIssues = append(result.AllIssues, newIssue(result, InvalidHTTPRespStatusCode, result.IgnoreReason, true))
+		result.AllIssues = append(result.AllIssues, newHTTPResponseIssue(result, resp.StatusCode, result.IgnoreReason, true))
 		return result
 	}
 

@@ -1,5 +1,7 @@
 package link
 
+import "fmt"
+
 type IssueCode string
 
 const (
@@ -37,6 +39,15 @@ func newIssue(link *HarvestedLink, code IssueCode, message string, isError bool)
 	result := new(issue)
 	result.context = link
 	result.code = code
+	result.message = message
+	result.isError = isError
+	return result
+}
+
+func newHTTPResponseIssue(link *HarvestedLink, httpRespStatusCode int, message string, isError bool) Issue {
+	result := new(issue)
+	result.context = link
+	result.code = IssueCode(fmt.Sprintf("%s-HTTP-%d", InvalidHTTPRespStatusCode, httpRespStatusCode))
 	result.message = message
 	result.isError = isError
 	return result
