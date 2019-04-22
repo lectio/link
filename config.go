@@ -2,8 +2,14 @@ package link
 
 import (
 	"fmt"
+	"net/http"
 	"net/url"
+	"os"
+	"path"
 	"regexp"
+	"time"
+
+	"github.com/lectio/resource"
 )
 
 // IgnoreLinkPolicy indicates whether a given URL should be ignored or harvested
@@ -19,9 +25,8 @@ type CleanLinkQueryParamsPolicy interface {
 
 // DestinationPolicy indicates whether we want to perform any destination actions
 type DestinationPolicy interface {
-	FollowRedirectsInDestinationHTMLContent(url *url.URL) bool
-	ParseMetaDataInDestinationHTMLContent(url *url.URL) bool
-	DownloadAttachmentsFromDestination(url *url.URL) (bool, string)
+	resource.Policy
+	FollowRedirectsInHTMLContent(url *url.URL) bool
 }
 
 // Configuration manage  the link harvesting options
@@ -45,22 +50,54 @@ func MakeConfiguration() *Configuration {
 	return result
 }
 
-// FollowRedirectsInDestinationHTMLContent defines whether we follow redirect rules in HTML <meta> refresh tags
-func (c Configuration) FollowRedirectsInDestinationHTMLContent(url *url.URL) bool {
+// HTTPUserAgent defines the HTTP GET user agent
+// This method satisfies resource.Policy interface
+func (c Configuration) HTTPUserAgent() string {
+	return "github.com/lectio/link"
+}
+
+// HTTPTimeout defines the HTTP GET timeout duration
+// This method satisfies resource.Policy interface
+func (c Configuration) HTTPTimeout() time.Duration {
+	return resource.HTTPTimeout
+}
+
+// DetectRedirectsInHTMLContent defines whether we detect redirect rules in HTML <meta> refresh tags
+// This method satisfies resource.Policy interface
+func (c Configuration) DetectRedirectsInHTMLContent(*url.URL) bool {
 	return c.FollowHTMLRedirects
 }
 
-// ParseMetaDataInDestinationHTMLContent should be true if OpenGraph, TwitterCard, or other HTML meta data is required
-func (c Configuration) ParseMetaDataInDestinationHTMLContent(url *url.URL) bool {
+// FollowRedirectsInHTMLContent defines whether we follow redirect rules in HTML <meta> refresh tags
+func (c Configuration) FollowRedirectsInHTMLContent(url *url.URL) bool {
+	return c.FollowHTMLRedirects
+}
+
+// ParseMetaDataInHTMLContent defines whether we want to parse HTML meta data
+// This method satisfies resource.Policy interface
+func (c Configuration) ParseMetaDataInHTMLContent(*url.URL) bool {
 	return c.ParseHTMLMetaDataTags
 }
 
-// DownloadAttachmentsFromDestination defines whether we download link attachments
-func (c Configuration) DownloadAttachmentsFromDestination(url *url.URL) (bool, string) {
-	if c.DownloadLinkAttachments {
-		return c.DownloadLinkAttachments, c.LinkAttachmentsStorePath
+// DownloadContent satisfies Policy method
+func (c Configuration) DownloadContent(url *url.URL, resp *http.Response, typ resource.Type) (bool, resource.Attachment, []resource.Issue) {
+	return resource.DownloadFile(c, url, resp, typ)
+}
+
+// CreateFile satisfies FileAttachmentPolicy method
+func (c Configuration) CreateFile(url *url.URL, t resource.Type) (*os.File, resource.Issue) {
+	pathAndFileName := path.Join(c.LinkAttachmentsStorePath, HashText(url.String()))
+	var issue Issue
+	destFile, err := os.Create(pathAndFileName)
+	if err != nil {
+		issue = newIssue(url.String(), "SUITE_E-0001", fmt.Sprintf("Unable to create file %q", pathAndFileName), true)
 	}
-	return false, c.LinkAttachmentsStorePath
+	return destFile, issue
+}
+
+// AutoAssignExtension satisfies FileAttachmentPolicy method
+func (c Configuration) AutoAssignExtension(url *url.URL, t resource.Type) bool {
+	return true
 }
 
 // IgnoreLink returns true (and a reason) if the given url should be ignored by the harvester

@@ -29,9 +29,14 @@ func (k defaultKeys) PrimaryKeyForURL(url *url.URL) string {
 }
 
 func (k defaultKeys) PrimaryKeyForURLText(urlText string) string {
+	return HashText(urlText)
+}
+
+// HashText returns SHA1 for s
+func HashText(s string) string {
 	// TODO: consider adding a key cache since sha1 is compute intensive
 	h := sha1.New()
-	h.Write([]byte(urlText))
+	h.Write([]byte(s))
 	bs := h.Sum(nil)
 	return fmt.Sprintf("%x", bs)
 }

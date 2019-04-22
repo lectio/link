@@ -6,6 +6,7 @@ import (
 	"path"
 	"testing"
 
+	"github.com/lectio/resource"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -34,7 +35,6 @@ func (suite *LinkSuite) harvestSingleURLFromMockTweet(text string, urlText strin
 func (suite *LinkSuite) TestInvalidlyFormattedURLs() {
 	hr := suite.harvestSingleURLFromMockTweet("Test an invalidly formatted URL %s in a mock tweet", "https://t")
 	suite.False(hr.IsURLValid, "URL should have invalid format")
-	suite.False(hr.IsDestValid, "URL should have invalid destination")
 	suite.Nil(hr.Content, "No content should be available")
 
 	issues, errors, warnings := hr.IssueCounts()
@@ -49,9 +49,7 @@ func (suite *LinkSuite) TestInvalidlyFormattedURLs() {
 
 func (suite *LinkSuite) TestInvalidDestinationURLs() {
 	hr := suite.harvestSingleURLFromMockTweet("Test a validly formatted URL %s but with invalid destination in a mock tweet", "https://t.co/fDxPF")
-	suite.True(hr.IsURLValid, "URL should be formatted validly")
-	suite.False(hr.IsDestValid, "URL should have invalid destination")
-	suite.Equal(hr.HTTPStatusCode, 404)
+	suite.False(hr.IsURLValid, "URL should be considered invalid")
 	suite.Nil(hr.Content, "No content should be available")
 
 	issues, errors, warnings := hr.IssueCounts()
@@ -76,26 +74,23 @@ func (suite *LinkSuite) TestSimplifiedHostnames() {
 func (suite *LinkSuite) TestOpenGraphMetaTags() {
 	hr := suite.harvestSingleURLFromMockTweet("Test a good URL %s which will redirect to a URL we want to ignore, with utm_* params", "http://bit.ly/lectio_harvester_resource_test01")
 	suite.True(hr.IsURLValid, "URL should be formatted validly")
-	suite.True(hr.IsDestValid, "URL should have valid destination")
 	suite.NotNil(hr.Content, "Inspection results should be available")
 
-	value, _ := hr.Content.GetOpenGraphMetaTag("site_name")
+	value, _, _ := hr.Content.MetaTag("og:site_name")
 	suite.Equal(value, "Netspective")
 
-	value, _ = hr.Content.GetOpenGraphMetaTag("title")
+	value, _, _ = hr.Content.MetaTag("og:title")
 	suite.Equal(value, "Safety, privacy, and security focused technology consulting")
 
-	value, _ = hr.Content.GetOpenGraphMetaTag("description")
+	value, _, _ = hr.Content.MetaTag("og:description")
 	suite.Equal(value, "Software, technology, and management consulting focused on firms im pacted by FDA, ONC, NIST or other safety, privacy, and security regulations")
 }
 
 func (suite *LinkSuite) TestIgnoreRules() {
 	hr := suite.harvestSingleURLFromMockTweet("Test a good URL %s which will redirect to a URL we want to ignore", "https://t.co/xNzrxkHE1u")
 	suite.True(hr.IsURLValid, "URL should be formatted validly")
-	suite.True(hr.IsDestValid, "URL should have valid destination")
 	suite.True(hr.IsURLIgnored, "URL should be ignored (skipped)")
 	suite.Equal(hr.IgnoreReason, "Matched Ignore Rule `^https://twitter.com/(.*?)/status/(.*)$`")
-	suite.Nil(hr.Content, "No content should be available")
 
 	issues, errors, warnings := hr.IssueCounts()
 	suite.Equal(uint(1), issues, "Ensure proper issues count")
@@ -110,9 +105,8 @@ func (suite *LinkSuite) TestIgnoreRules() {
 func (suite *LinkSuite) TestResolvedURLRedirectedThroughHTMLProperly() {
 	hr := suite.harvestSingleURLFromMockTweet("Test a good URL %s which will redirect to a URL we want to resolve via <meta http-equiv='refresh' content='delay;url='>, with utm_* params", "http://bit.ly/lectio_harvester_resource_test03")
 	suite.True(hr.IsURLValid, "URL should be formatted validly")
-	suite.True(hr.IsDestValid, "URL should have valid destination")
 	suite.False(hr.IsURLIgnored, "URL should not be ignored")
-	isHTMLRedirect, htmlRedirectURLText := hr.Content.IsContentBasedRedirect()
+	isHTMLRedirect, htmlRedirectURLText := hr.Content.Redirect()
 	suite.True(isHTMLRedirect, "There should have been an HTML redirect requested through <meta http-equiv='refresh' content='delay;url='>")
 	suite.Equal(htmlRedirectURLText, "https://www.netspective.com/?utm_source=lectio_harvester_resource_test.go&utm_medium=go.TestSuite&utm_campaign=harvester.ResourceSuite")
 	suite.NotNil(hr.Content, "Inspection results should be available")
@@ -124,7 +118,6 @@ func (suite *LinkSuite) TestResolvedURLRedirectedThroughHTMLProperly() {
 	redirectedHR := HarvestLinkWithConfig("http://bit.ly/lectio_harvester_resource_test03", config)
 	suite.NotNil(redirectedHR.OrigLink, hr, "The referral resource should be the same as the original")
 	suite.True(redirectedHR.IsURLValid, "Redirected URL should be formatted validly")
-	suite.True(redirectedHR.IsDestValid, "Redirected URL should have valid destination")
 	suite.False(redirectedHR.IsURLIgnored, "Redirected URL should not be ignored")
 	suite.True(redirectedHR.AreURLParamsCleaned, "Redirected URL should be 'cleaned'")
 	suite.Equal(redirectedHR.ResolvedURL.String(), "https://www.netspective.com/?utm_source=lectio_harvester_resource_test.go&utm_medium=go.TestSuite&utm_campaign=harvester.ResourceSuite")
@@ -136,7 +129,6 @@ func (suite *LinkSuite) TestResolvedURLRedirectedThroughHTMLProperly() {
 func (suite *LinkSuite) TestResolvedURLCleaned() {
 	hr := suite.harvestSingleURLFromMockTweet("Test a good URL %s which will redirect to a URL we want to ignore, with utm_* params", "http://bit.ly/lectio_harvester_resource_test01")
 	suite.True(hr.IsURLValid, "URL should be formatted validly")
-	suite.True(hr.IsDestValid, "URL should have valid destination")
 	suite.False(hr.IsURLIgnored, "URL should not be ignored")
 	suite.True(hr.AreURLParamsCleaned, "URL should be 'cleaned'")
 	suite.Equal(hr.ResolvedURL.String(), "https://www.netspective.com/?utm_source=lectio_harvester_resource_test.go&utm_medium=go.TestSuite&utm_campaign=harvester.ResourceSuite")
@@ -148,7 +140,6 @@ func (suite *LinkSuite) TestResolvedURLCleaned() {
 func (suite *LinkSuite) TestResolvedURLCleanedKeys() {
 	hr := suite.harvestSingleURLFromMockTweet("Test a good URL %s which will redirect to a URL we want to ignore, with utm_* params", "http://bit.ly/lectio_harvester_resource_test02")
 	suite.True(hr.IsURLValid, "URL should be formatted validly")
-	suite.True(hr.IsDestValid, "URL should have valid destination")
 	suite.False(hr.IsURLIgnored, "URL should not be ignored")
 	suite.True(hr.AreURLParamsCleaned, "URL should be 'cleaned'")
 	suite.Equal(hr.ResolvedURL.String(), "https://www.netspective.com/solutions/opsfolio/?utm_source=lectio_harvester_resource_test.go&utm_medium=go.TestSuite&utm_campaign=harvester.ResourceSuite")
@@ -161,7 +152,6 @@ func (suite *LinkSuite) TestResolvedURLCleanedKeys() {
 func (suite *LinkSuite) TestResolvedURLNotCleaned() {
 	hr := suite.harvestSingleURLFromMockTweet("Test a good URL %s which will redirect to a URL we want to ignore", "https://t.co/ELrZmo81wI")
 	suite.True(hr.IsURLValid, "URL should be formatted validly")
-	suite.True(hr.IsDestValid, "URL should have valid destination")
 	suite.False(hr.IsURLIgnored, "URL should not be ignored")
 	suite.False(hr.AreURLParamsCleaned, "URL should not have been 'cleaned'")
 	suite.Equal(hr.ResolvedURL.String(), "https://www.foxnews.com/lifestyle/photo-of-donald-trump-look-alike-in-spain-goes-viral")
@@ -172,31 +162,39 @@ func (suite *LinkSuite) TestResolvedURLNotCleaned() {
 	suite.NotNil(content, "The destination content should be available")
 	suite.True(content.IsValid(), "The destination content should be valid")
 	suite.True(content.IsHTML(), "The destination content should be HTML")
-	suite.False(content.WasDownloaded(), "Because the destination was HTML, it should not have required to be downloaded")
 }
 
 func (suite *LinkSuite) TestResolvedDocumentURLNotCleaned() {
 	hr := suite.harvestSingleURLFromMockTweet("Check out the PROV-O specification document %s, which should resolve to an 'attachment' style URL", "http://ceur-ws.org/Vol-1401/paper-05.pdf")
 	suite.True(hr.IsURLValid, "URL should be formatted validly")
-	suite.True(hr.IsDestValid, "URL should have valid destination")
 	suite.False(hr.IsURLIgnored, "URL should not be ignored")
 	suite.False(hr.AreURLParamsCleaned, "URL should not have been 'cleaned'")
 	suite.Equal(hr.ResolvedURL.String(), "http://ceur-ws.org/Vol-1401/paper-05.pdf")
 	suite.Equal(hr.FinalizedURL.String(), hr.ResolvedURL.String(), "finalURL should be same as resolvedURL")
 	suite.Nil(hr.CleanedURL, "cleanedURL should be empty")
 
-	content := hr.Content
-	suite.NotNil(content, "The destination content should be available")
-	suite.True(content.IsValid(), "The destination content should be valid")
-	suite.True(content.WasDownloaded(), "Because the destination wasn't HTML, it should have been downloaded")
-	suite.Equal(content.Attachment.FileType.Extension, "pdf")
+	attachment := hr.Content.Attachment()
+	suite.NotNil(attachment, "Should have an attachment")
+	suite.True(attachment.IsValid(), "First attachment should be valid")
+	suite.Equal("application/pdf", attachment.Type().ContentType(), "Should be a PDF file")
+	suite.Equal("application/pdf", attachment.Type().MediaType(), "Should be a PDF file")
 
-	fileExists := false
-	if _, err := os.Stat(content.Attachment.DestPath); err == nil {
-		fileExists = true
+	fa, ok := attachment.(*resource.FileAttachment)
+	suite.True(ok, "Attachment should be a FileAttachment type")
+	if ok {
+		fileExists := false
+		if _, err := os.Stat(fa.DestPath); err == nil {
+			fileExists = true
+		}
+		suite.True(fileExists, "File %s should exist", fa.DestPath)
+		suite.Equal(path.Ext(fa.DestPath), ".pdf", "File's extension should be .pdf")
+
+		fa.Delete()
+		if _, err := os.Stat(fa.DestPath); err == nil {
+			fileExists = true
+		}
+		suite.True(fileExists, "File %s should not exist", fa.DestPath)
 	}
-	suite.True(fileExists, "File %s should exist", content.Attachment.DestPath)
-	suite.Equal(path.Ext(content.Attachment.DestPath), ".pdf", "File's extension should be .pdf")
 }
 
 func TestSuite(t *testing.T) {

@@ -2,19 +2,17 @@ package link
 
 import "fmt"
 
-type IssueCode string
-
 const (
-	MatchesIgnorePolicy       IssueCode = "LINKW-0100"
-	URLStructureInvalid       IssueCode = "LINKE-0200"
-	InvalidHTTPRespStatusCode IssueCode = "LINKE-0201"
-	FinalURLNilOrEmpty        IssueCode = "LINKE-0300"
+	MatchesIgnorePolicy       string = "LINKW-0100"
+	URLStructureInvalid       string = "LINKE-0200"
+	InvalidHTTPRespStatusCode string = "LINKE-0201"
+	FinalURLNilOrEmpty        string = "LINKE-0300"
 )
 
 // Issue is a structured problem identification with context information
 type Issue interface {
 	IssueContext() interface{} // this will be the Link object plus location (item index, etc.), it's kept generic so it doesn't require package dependency
-	IssueCode() IssueCode      // useful to uniquely identify a particular code
+	IssueCode() string         // useful to uniquely identify a particular code
 	Issue() string             // the
 
 	IsError() bool   // this issue is an error
@@ -29,25 +27,25 @@ type Issues interface {
 }
 
 type issue struct {
-	context *HarvestedLink
-	code    IssueCode
+	context string
+	code    string
 	message string
 	isError bool
 }
 
-func newIssue(link *HarvestedLink, code IssueCode, message string, isError bool) Issue {
+func newIssue(context string, code string, message string, isError bool) Issue {
 	result := new(issue)
-	result.context = link
+	result.context = context
 	result.code = code
 	result.message = message
 	result.isError = isError
 	return result
 }
 
-func newHTTPResponseIssue(link *HarvestedLink, httpRespStatusCode int, message string, isError bool) Issue {
+func newHTTPResponseIssue(context string, httpRespStatusCode int, message string, isError bool) Issue {
 	result := new(issue)
-	result.context = link
-	result.code = IssueCode(fmt.Sprintf("%s-HTTP-%d", InvalidHTTPRespStatusCode, httpRespStatusCode))
+	result.context = context
+	result.code = fmt.Sprintf("%s-HTTP-%d", InvalidHTTPRespStatusCode, httpRespStatusCode)
 	result.message = message
 	result.isError = isError
 	return result
@@ -57,7 +55,7 @@ func (i issue) IssueContext() interface{} {
 	return i.context
 }
 
-func (i issue) IssueCode() IssueCode {
+func (i issue) IssueCode() string {
 	return i.code
 }
 
