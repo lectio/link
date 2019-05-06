@@ -29,7 +29,7 @@ type DestinationPolicy interface {
 	FollowRedirectsInHTMLContent(url *url.URL) bool
 }
 
-// Configuration manage  the link harvesting options
+// Configuration manages the link traversal options
 type Configuration struct {
 	IgnoreURLsRegExprs        []*regexp.Regexp `json:"ignoreURLsRegExprs"`
 	RemoveParamsFromURLsRegEx []*regexp.Regexp `json:"removeParamsFromURLsRegEx"`

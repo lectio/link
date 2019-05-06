@@ -22,18 +22,18 @@ func (suite *LinkSuite) SetupSuite() {
 func (suite *LinkSuite) TearDownSuite() {
 }
 
-func (suite *LinkSuite) harvestSingleURLFromMockTweet(text string, urlText string) *HarvestedLink {
+func (suite *LinkSuite) traverseSingleURLFromMockTweet(text string, urlText string) *TraversedLink {
 	config := MakeConfiguration()
 	config.DownloadLinkAttachments = true
 	// false for followHTMLRedirect because we need to test the features in the suite; in production it would be true
 	config.FollowHTMLRedirects = false
-	hr := HarvestLinkWithConfig(urlText, config)
+	hr := TraverseLinkWithConfig(urlText, config)
 	suite.NotNil(hr, "The harvested resources should not be Nil")
 	return hr
 }
 
 func (suite *LinkSuite) TestInvalidlyFormattedURLs() {
-	hr := suite.harvestSingleURLFromMockTweet("Test an invalidly formatted URL %s in a mock tweet", "https://t")
+	hr := suite.traverseSingleURLFromMockTweet("Test an invalidly formatted URL %s in a mock tweet", "https://t")
 	suite.False(hr.IsURLValid, "URL should have invalid format")
 	suite.Nil(hr.Content, "No content should be available")
 
@@ -42,13 +42,13 @@ func (suite *LinkSuite) TestInvalidlyFormattedURLs() {
 	suite.Equal(uint(1), errors, "Ensure proper errors count")
 	suite.Equal(uint(0), warnings, "Ensure proper warnings count")
 
-	_, issue := hr.FinalURL()
-	suite.NotNil(issue, "Ensure issue is returned")
-	suite.Equal(FinalURLNilOrEmpty, issue.IssueCode(), "Ensure proper issue code")
+	finalURL, finalURLErr := hr.FinalURL()
+	suite.Nil(finalURL, "Ensure FinalURL is nil")
+	suite.Nil(finalURLErr, "Ensure error is nil")
 }
 
 func (suite *LinkSuite) TestInvalidDestinationURLs() {
-	hr := suite.harvestSingleURLFromMockTweet("Test a validly formatted URL %s but with invalid destination in a mock tweet", "https://t.co/fDxPF")
+	hr := suite.traverseSingleURLFromMockTweet("Test a validly formatted URL %s but with invalid destination in a mock tweet", "https://t.co/fDxPF")
 	suite.False(hr.IsURLValid, "URL should be considered invalid")
 	suite.Nil(hr.Content, "No content should be available")
 
@@ -57,9 +57,9 @@ func (suite *LinkSuite) TestInvalidDestinationURLs() {
 	suite.Equal(uint(1), errors, "Ensure proper errors count")
 	suite.Equal(uint(0), warnings, "Ensure proper warnings count")
 
-	_, issue := hr.FinalURL()
-	suite.NotNil(issue, "Ensure issue is returned")
-	suite.Equal(FinalURLNilOrEmpty, issue.IssueCode(), "Ensure proper issue code")
+	finalURL, finalURLErr := hr.FinalURL()
+	suite.Nil(finalURL, "Ensure FinalURL is nil")
+	suite.Nil(finalURLErr, "Ensure error is nil")
 }
 
 func (suite *LinkSuite) TestSimplifiedHostnames() {
@@ -72,7 +72,7 @@ func (suite *LinkSuite) TestSimplifiedHostnames() {
 }
 
 func (suite *LinkSuite) TestOpenGraphMetaTags() {
-	hr := suite.harvestSingleURLFromMockTweet("Test a good URL %s which will redirect to a URL we want to ignore, with utm_* params", "http://bit.ly/lectio_harvester_resource_test01")
+	hr := suite.traverseSingleURLFromMockTweet("Test a good URL %s which will redirect to a URL we want to ignore, with utm_* params", "http://bit.ly/lectio_harvester_resource_test01")
 	suite.True(hr.IsURLValid, "URL should be formatted validly")
 	suite.NotNil(hr.Content, "Inspection results should be available")
 
@@ -87,7 +87,7 @@ func (suite *LinkSuite) TestOpenGraphMetaTags() {
 }
 
 func (suite *LinkSuite) TestIgnoreRules() {
-	hr := suite.harvestSingleURLFromMockTweet("Test a good URL %s which will redirect to a URL we want to ignore", "https://t.co/xNzrxkHE1u")
+	hr := suite.traverseSingleURLFromMockTweet("Test a good URL %s which will redirect to a URL we want to ignore", "https://t.co/xNzrxkHE1u")
 	suite.True(hr.IsURLValid, "URL should be formatted validly")
 	suite.True(hr.IsURLIgnored, "URL should be ignored (skipped)")
 	suite.Equal(hr.IgnoreReason, "Matched Ignore Rule `^https://twitter.com/(.*?)/status/(.*)$`")
@@ -103,7 +103,7 @@ func (suite *LinkSuite) TestIgnoreRules() {
 }
 
 func (suite *LinkSuite) TestResolvedURLRedirectedThroughHTMLProperly() {
-	hr := suite.harvestSingleURLFromMockTweet("Test a good URL %s which will redirect to a URL we want to resolve via <meta http-equiv='refresh' content='delay;url='>, with utm_* params", "http://bit.ly/lectio_harvester_resource_test03")
+	hr := suite.traverseSingleURLFromMockTweet("Test a good URL %s which will redirect to a URL we want to resolve via <meta http-equiv='refresh' content='delay;url='>, with utm_* params", "http://bit.ly/lectio_harvester_resource_test03")
 	suite.True(hr.IsURLValid, "URL should be formatted validly")
 	suite.False(hr.IsURLIgnored, "URL should not be ignored")
 	isHTMLRedirect, htmlRedirectURLText := hr.Content.Redirect()
@@ -115,7 +115,7 @@ func (suite *LinkSuite) TestResolvedURLRedirectedThroughHTMLProperly() {
 	config := MakeConfiguration()
 	config.FollowHTMLRedirects = true
 	config.DownloadLinkAttachments = true
-	redirectedHR := HarvestLinkWithConfig("http://bit.ly/lectio_harvester_resource_test03", config)
+	redirectedHR := TraverseLinkWithConfig("http://bit.ly/lectio_harvester_resource_test03", config)
 	suite.NotNil(redirectedHR.OrigLink, hr, "The referral resource should be the same as the original")
 	suite.True(redirectedHR.IsURLValid, "Redirected URL should be formatted validly")
 	suite.False(redirectedHR.IsURLIgnored, "Redirected URL should not be ignored")
@@ -127,7 +127,7 @@ func (suite *LinkSuite) TestResolvedURLRedirectedThroughHTMLProperly() {
 }
 
 func (suite *LinkSuite) TestResolvedURLCleaned() {
-	hr := suite.harvestSingleURLFromMockTweet("Test a good URL %s which will redirect to a URL we want to ignore, with utm_* params", "http://bit.ly/lectio_harvester_resource_test01")
+	hr := suite.traverseSingleURLFromMockTweet("Test a good URL %s which will redirect to a URL we want to ignore, with utm_* params", "http://bit.ly/lectio_harvester_resource_test01")
 	suite.True(hr.IsURLValid, "URL should be formatted validly")
 	suite.False(hr.IsURLIgnored, "URL should not be ignored")
 	suite.True(hr.AreURLParamsCleaned, "URL should be 'cleaned'")
@@ -138,7 +138,7 @@ func (suite *LinkSuite) TestResolvedURLCleaned() {
 }
 
 func (suite *LinkSuite) TestResolvedURLCleanedKeys() {
-	hr := suite.harvestSingleURLFromMockTweet("Test a good URL %s which will redirect to a URL we want to ignore, with utm_* params", "http://bit.ly/lectio_harvester_resource_test02")
+	hr := suite.traverseSingleURLFromMockTweet("Test a good URL %s which will redirect to a URL we want to ignore, with utm_* params", "http://bit.ly/lectio_harvester_resource_test02")
 	suite.True(hr.IsURLValid, "URL should be formatted validly")
 	suite.False(hr.IsURLIgnored, "URL should not be ignored")
 	suite.True(hr.AreURLParamsCleaned, "URL should be 'cleaned'")
@@ -150,7 +150,7 @@ func (suite *LinkSuite) TestResolvedURLCleanedKeys() {
 }
 
 func (suite *LinkSuite) TestResolvedURLNotCleaned() {
-	hr := suite.harvestSingleURLFromMockTweet("Test a good URL %s which will redirect to a URL we want to ignore", "https://t.co/ELrZmo81wI")
+	hr := suite.traverseSingleURLFromMockTweet("Test a good URL %s which will redirect to a URL we want to ignore", "https://t.co/ELrZmo81wI")
 	suite.True(hr.IsURLValid, "URL should be formatted validly")
 	suite.False(hr.IsURLIgnored, "URL should not be ignored")
 	suite.False(hr.AreURLParamsCleaned, "URL should not have been 'cleaned'")
@@ -165,7 +165,7 @@ func (suite *LinkSuite) TestResolvedURLNotCleaned() {
 }
 
 func (suite *LinkSuite) TestResolvedDocumentURLNotCleaned() {
-	hr := suite.harvestSingleURLFromMockTweet("Check out the PROV-O specification document %s, which should resolve to an 'attachment' style URL", "http://ceur-ws.org/Vol-1401/paper-05.pdf")
+	hr := suite.traverseSingleURLFromMockTweet("Check out the PROV-O specification document %s, which should resolve to an 'attachment' style URL", "http://ceur-ws.org/Vol-1401/paper-05.pdf")
 	suite.True(hr.IsURLValid, "URL should be formatted validly")
 	suite.False(hr.IsURLIgnored, "URL should not be ignored")
 	suite.False(hr.AreURLParamsCleaned, "URL should not have been 'cleaned'")

@@ -6,7 +6,6 @@ const (
 	MatchesIgnorePolicy       string = "LINKW-0100"
 	URLStructureInvalid       string = "LINKE-0200"
 	InvalidHTTPRespStatusCode string = "LINKE-0201"
-	FinalURLNilOrEmpty        string = "LINKE-0300"
 )
 
 // Issue is a structured problem identification with context information
