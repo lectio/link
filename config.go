@@ -7,7 +7,6 @@ import (
 	"os"
 	"path"
 	"regexp"
-	"time"
 
 	"github.com/lectio/resource"
 )
@@ -31,6 +30,7 @@ type DestinationPolicy interface {
 
 // Configuration manages the link traversal options
 type Configuration struct {
+	httpClient                *http.Client
 	IgnoreURLsRegExprs        []*regexp.Regexp `json:"ignoreURLsRegExprs"`
 	RemoveParamsFromURLsRegEx []*regexp.Regexp `json:"removeParamsFromURLsRegEx"`
 	FollowHTMLRedirects       bool             `json:"followHTMLRedirects"`
@@ -42,6 +42,7 @@ type Configuration struct {
 // MakeConfiguration creates a default configuration instance
 func MakeConfiguration() *Configuration {
 	result := new(Configuration)
+	result.httpClient = &http.Client{Timeout: resource.HTTPTimeout}
 	result.IgnoreURLsRegExprs = []*regexp.Regexp{regexp.MustCompile(`^https://twitter.com/(.*?)/status/(.*)$`), regexp.MustCompile(`https://t.co`)}
 	result.RemoveParamsFromURLsRegEx = []*regexp.Regexp{regexp.MustCompile(`^utm_`)}
 	result.FollowHTMLRedirects = true
@@ -56,10 +57,10 @@ func (c Configuration) HTTPUserAgent() string {
 	return "github.com/lectio/link"
 }
 
-// HTTPTimeout defines the HTTP GET timeout duration
+// HTTPClient defines the HTTP Client for the links to use
 // This method satisfies resource.Policy interface
-func (c Configuration) HTTPTimeout() time.Duration {
-	return resource.HTTPTimeout
+func (c Configuration) HTTPClient() *http.Client {
+	return c.httpClient
 }
 
 // DetectRedirectsInHTMLContent defines whether we detect redirect rules in HTML <meta> refresh tags
