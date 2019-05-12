@@ -4,8 +4,8 @@ github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/h2non/filetype v1.0.8 h1:le8gpf+FQA0/DlDABbtisA1KiTS0Xi+YSC/E8yY3Y14=
 github.com/h2non/filetype v1.0.8/go.mod h1:isekKqOuhMj+s/7r3rIeTErIRy4Rub5uBWHfvMusLMU=
-github.com/lectio/resource v0.0.0-20190511183258-9eb6100f9747 h1:Z3NWhTzkWNLaekiThRz7j3BNs1jh9YC1Um4rVyyGGkg=
-github.com/lectio/resource v0.0.0-20190511183258-9eb6100f9747/go.mod h1:eX5m9KC0oiDwqOAM11wUqo6qrJysa4/6k1CVBuKzVpU=
+github.com/lectio/resource v0.0.0-20190512210845-2f8b770d47bf h1:mv0IhIpJPgc8hNAiI+MXfCeeiXLDhE943QRzzCXa9EU=
+github.com/lectio/resource v0.0.0-20190512210845-2f8b770d47bf/go.mod h1:eX5m9KC0oiDwqOAM11wUqo6qrJysa4/6k1CVBuKzVpU=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=

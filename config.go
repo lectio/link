@@ -51,16 +51,16 @@ func MakeConfiguration() *Configuration {
 	return result
 }
 
-// HTTPUserAgent defines the HTTP GET user agent
-// This method satisfies resource.Policy interface
-func (c Configuration) HTTPUserAgent() string {
-	return "github.com/lectio/link"
-}
-
 // HTTPClient defines the HTTP Client for the links to use
 // This method satisfies resource.Policy interface
 func (c Configuration) HTTPClient() *http.Client {
 	return c.httpClient
+}
+
+// PrepareRequest adjusts the user agent and other HTTP request settings
+// This method satisfies resource.Policy interface
+func (c Configuration) PrepareRequest(client *http.Client, req *http.Request) {
+	req.Header.Set("User-Agent", "github.com/lectio/link")
 }
 
 // DetectRedirectsInHTMLContent defines whether we detect redirect rules in HTML <meta> refresh tags
