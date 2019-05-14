@@ -12,11 +12,9 @@ import (
 
 type LinkSuite struct {
 	suite.Suite
-	keys Keys
 }
 
 func (suite *LinkSuite) SetupSuite() {
-	suite.keys = MakeDefaultKeys()
 }
 
 func (suite *LinkSuite) TearDownSuite() {
@@ -146,7 +144,6 @@ func (suite *LinkSuite) TestResolvedURLCleanedKeys() {
 	suite.Equal(hr.CleanedURL.String(), "https://www.netspective.com/solutions/opsfolio/")
 	suite.Equal(hr.FinalizedURL.String(), hr.CleanedURL.String(), "finalURL should be same as cleanedURL")
 	suite.NotNil(hr.Content, "Inspection results should be available")
-	suite.Equal(hr.PrimaryKey(suite.keys), "c3ac941bc19188497805cbe583ff8d122ac663d6")
 }
 
 func (suite *LinkSuite) TestResolvedURLNotCleaned() {

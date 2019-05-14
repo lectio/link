@@ -1,6 +1,7 @@
 package link
 
 import (
+	"crypto/sha1"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -83,6 +84,15 @@ func (c Configuration) ParseMetaDataInHTMLContent(*url.URL) bool {
 // DownloadContent satisfies Policy method
 func (c Configuration) DownloadContent(url *url.URL, resp *http.Response, typ resource.Type) (bool, resource.Attachment, []resource.Issue) {
 	return resource.DownloadFile(c, url, resp, typ)
+}
+
+// HashText returns SHA1 for s
+func HashText(s string) string {
+	// TODO: consider adding a key cache since sha1 is compute intensive
+	h := sha1.New()
+	h.Write([]byte(s))
+	bs := h.Sum(nil)
+	return fmt.Sprintf("%x", bs)
 }
 
 // CreateFile satisfies FileAttachmentPolicy method

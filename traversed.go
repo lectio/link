@@ -81,14 +81,6 @@ func (r TraversedLink) Ignore() (bool, string) {
 	return r.IsURLIgnored, r.IgnoreReason
 }
 
-// PrimaryKey returns the primary key for this URL
-func (r TraversedLink) PrimaryKey(keys Keys) string {
-	if r.IsURLValid && r.FinalizedURL != nil {
-		return keys.PrimaryKeyForURLText(r.FinalizedURL.String())
-	}
-	return keys.PrimaryKeyForURLText(r.OrigURLText)
-}
-
 // IsHTMLRedirect returns true if redirect was requested through via <meta http-equiv='refresh' Content='delay;url='>
 // For an explanation, please see http://redirectdetective.com/redirection-types.html
 func (r *TraversedLink) IsHTMLRedirect() (bool, string) {
