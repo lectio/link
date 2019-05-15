@@ -83,6 +83,9 @@ func (c Configuration) ParseMetaDataInHTMLContent(*url.URL) bool {
 
 // DownloadContent satisfies Policy method
 func (c Configuration) DownloadContent(url *url.URL, resp *http.Response, typ resource.Type) (bool, resource.Attachment, []resource.Issue) {
+	if !c.DownloadLinkAttachments {
+		return false, nil, nil
+	}
 	return resource.DownloadFile(c, url, resp, typ)
 }
 
