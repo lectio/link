@@ -1,6 +1,8 @@
 package link
 
 import (
+	"context"
+	"net/http"
 	"net/url"
 	"os"
 	"path"
@@ -12,33 +14,36 @@ import (
 
 type LinkSuite struct {
 	suite.Suite
+	factory             *DefaultFactory
+	followHTMLRedirects bool
 }
 
 func (suite *LinkSuite) SetupSuite() {
+	suite.factory = NewFactory(suite)
 }
 
 func (suite *LinkSuite) TearDownSuite() {
 }
 
+func (suite *LinkSuite) DownloadContent(ctx context.Context, url *url.URL, resp *http.Response, typ resource.Type) (bool, resource.Attachment, error) {
+	return resource.DownloadFile(ctx, suite.factory, url, resp, typ)
+}
+
+func (suite *LinkSuite) FollowRedirectsInHTMLContent(context.Context, *url.URL) bool {
+	return suite.followHTMLRedirects
+}
+
 func (suite *LinkSuite) traverseSingleURLFromMockTweet(text string, urlText string) *TraversedLink {
-	config := MakeConfiguration()
-	config.DownloadLinkAttachments = true
-	// false for followHTMLRedirect because we need to test the features in the suite; in production it would be true
-	config.FollowHTMLRedirects = false
-	hr := TraverseLinkWithConfig(urlText, config)
-	suite.NotNil(hr, "The harvested resources should not be Nil")
-	return hr
+	ctx := context.Background()
+	suite.followHTMLRedirects = false // during testing, we don't want redirects
+	_, link, _ := suite.factory.TraverseLink(ctx, urlText)
+	return link.(*TraversedLink)
 }
 
 func (suite *LinkSuite) TestInvalidlyFormattedURLs() {
 	hr := suite.traverseSingleURLFromMockTweet("Test an invalidly formatted URL %s in a mock tweet", "https://t")
 	suite.False(hr.IsURLValid, "URL should have invalid format")
 	suite.Nil(hr.Content, "No content should be available")
-
-	issues, errors, warnings := hr.IssueCounts()
-	suite.Equal(uint(1), issues, "Ensure proper issues count")
-	suite.Equal(uint(1), errors, "Ensure proper errors count")
-	suite.Equal(uint(0), warnings, "Ensure proper warnings count")
 
 	finalURL, finalURLErr := hr.FinalURL()
 	suite.Nil(finalURL, "Ensure FinalURL is nil")
@@ -49,11 +54,6 @@ func (suite *LinkSuite) TestInvalidDestinationURLs() {
 	hr := suite.traverseSingleURLFromMockTweet("Test a validly formatted URL %s but with invalid destination in a mock tweet", "https://t.co/fDxPF")
 	suite.False(hr.IsURLValid, "URL should be considered invalid")
 	suite.Nil(hr.Content, "No content should be available")
-
-	issues, errors, warnings := hr.IssueCounts()
-	suite.Equal(uint(1), issues, "Ensure proper issues count")
-	suite.Equal(uint(1), errors, "Ensure proper errors count")
-	suite.Equal(uint(0), warnings, "Ensure proper warnings count")
 
 	finalURL, finalURLErr := hr.FinalURL()
 	suite.Nil(finalURL, "Ensure FinalURL is nil")
@@ -90,11 +90,6 @@ func (suite *LinkSuite) TestIgnoreRules() {
 	suite.True(hr.IsURLIgnored, "URL should be ignored (skipped)")
 	suite.Equal(hr.IgnoreReason, "Matched Ignore Rule `^https://twitter.com/(.*?)/status/(.*)$`")
 
-	issues, errors, warnings := hr.IssueCounts()
-	suite.Equal(uint(1), issues, "Ensure proper issues count")
-	suite.Equal(uint(0), errors, "Ensure proper errors count")
-	suite.Equal(uint(1), warnings, "Ensure proper warnings count")
-
 	finalURL, issue := hr.FinalURL()
 	suite.Nil(issue, "Ensure there is no issue")
 	suite.Equal("https://twitter.com/Live5News/status/993220120402161664/photo/1", finalURL.String())
@@ -110,18 +105,20 @@ func (suite *LinkSuite) TestResolvedURLRedirectedThroughHTMLProperly() {
 	suite.NotNil(hr.Content, "Inspection results should be available")
 
 	// at this point we want to get the "new" (redirected) and test it
-	config := MakeConfiguration()
-	config.FollowHTMLRedirects = true
-	config.DownloadLinkAttachments = true
-	redirectedHR := TraverseLinkWithConfig("http://bit.ly/lectio_harvester_resource_test03", config)
-	suite.NotNil(redirectedHR.OrigLink, hr, "The referral resource should be the same as the original")
-	suite.True(redirectedHR.IsURLValid, "Redirected URL should be formatted validly")
-	suite.False(redirectedHR.IsURLIgnored, "Redirected URL should not be ignored")
-	suite.True(redirectedHR.AreURLParamsCleaned, "Redirected URL should be 'cleaned'")
-	suite.Equal(redirectedHR.ResolvedURL.String(), "https://www.netspective.com/?utm_source=lectio_harvester_resource_test.go&utm_medium=go.TestSuite&utm_campaign=harvester.ResourceSuite")
-	suite.Equal(redirectedHR.CleanedURL.String(), "https://www.netspective.com/")
-	suite.Equal(redirectedHR.FinalizedURL.String(), redirectedHR.CleanedURL.String(), "finalURL should be same as cleanedURL")
-	suite.NotNil(redirectedHR.Content, "Inspection results should be available")
+	ctx := context.Background()
+	suite.followHTMLRedirects = true
+	traversable, redirLink, err := suite.factory.TraverseLink(ctx, "http://bit.ly/lectio_harvester_resource_test03")
+	redirectedLink := redirLink.(*TraversedLink)
+	suite.Nil(err, "No error expected")
+	suite.True(traversable, "Should be traversable")
+	suite.NotNil(redirectedLink.OrigLink, hr, "The referral resource should be the same as the original")
+	suite.True(redirectedLink.IsURLValid, "Redirected URL should be formatted validly")
+	suite.False(redirectedLink.IsURLIgnored, "Redirected URL should not be ignored")
+	suite.True(redirectedLink.AreURLParamsCleaned, "Redirected URL should be 'cleaned'")
+	suite.Equal(redirectedLink.ResolvedURL.String(), "https://www.netspective.com/?utm_source=lectio_harvester_resource_test.go&utm_medium=go.TestSuite&utm_campaign=harvester.ResourceSuite")
+	suite.Equal(redirectedLink.CleanedURL.String(), "https://www.netspective.com/")
+	suite.Equal(redirectedLink.FinalizedURL.String(), redirectedLink.CleanedURL.String(), "finalURL should be same as cleanedURL")
+	suite.NotNil(redirectedLink.Content, "Inspection results should be available")
 }
 
 func (suite *LinkSuite) TestResolvedURLCleaned() {

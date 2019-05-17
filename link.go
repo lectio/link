@@ -11,28 +11,21 @@ type Link interface {
 	FinalURL() (*url.URL, error)
 }
 
-// ManagedLink is the public interface for a "managed smart URL" which knows its destination and policy
-type ManagedLink interface {
-	Link
-	Issues() Issues
-	Ignore() (bool, string)
-}
-
 // Lifecycle defines common creation / destruction methods
 type Lifecycle interface {
-	HarvestLink(urlText string) (Link, Issue)
+	TraverseLink(urlText string) TraversalStatus
 }
 
 // Reader defines common reader methods
 type Reader interface {
-	GetLink(urlText string) (Link, Issue)
-	HasLink(urlText string) (bool, Issue)
+	GetLink(urlText string) TraversalStatus
+	HasLink(urlText string) (bool, error)
 }
 
 // Writer defines common writer methods
 type Writer interface {
-	WriteLink(Link) Issue
-	DeleteLink(Link) Issue
+	WriteLink(Link) error
+	DeleteLink(Link) error
 }
 
 // Store pulls together all the lifecyle, reader, and writer methods
