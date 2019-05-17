@@ -13,6 +13,12 @@ import (
 	"time"
 )
 
+// Link is the public interface for a "smart URL" which knows its destination
+type Link interface {
+	OriginalURL() string
+	FinalURL() (*url.URL, error)
+}
+
 // Factory is a lifecycle manager for URL-based resources
 type Factory interface {
 	TraverseLink(ctx context.Context, origURLtext string, options ...interface{}) (bool, Link, error)
