@@ -27,7 +27,6 @@ func NewFactory(options ...interface{}) *DefaultFactory {
 	f := &DefaultFactory{}
 
 	f.ResourceFactory = resource.NewFactory(options...)
-	f.WarningTracker = f // we implemented a default version
 
 	f.IgnoreLinkPolicy = f // we implemented a default version
 	f.IgnoreURLsRegExprs = []*regexp.Regexp{regexp.MustCompile(`^https://twitter.com/(.*?)/status/(.*)$`), regexp.MustCompile(`https://t.co`)}
@@ -57,16 +56,11 @@ type FollowRedirectsInHTMLContentPolicy interface {
 	FollowRedirectsInHTMLContent(context.Context, *url.URL) bool
 }
 
-type WarningTracker interface {
-	OnWarning(ctx context.Context, code, message string)
-}
-
 type DefaultFactory struct {
 	IgnoreURLsRegExprs        []*regexp.Regexp `json:"ignoreURLsRegExprs"`
 	RemoveParamsFromURLsRegEx []*regexp.Regexp `json:"removeParamsFromURLsRegEx"`
 
 	ResourceFactory                    resource.Factory
-	WarningTracker                     WarningTracker
 	IgnoreLinkPolicy                   IgnoreLinkPolicy
 	CleanLinkQueryParamsPolicy         CleanLinkQueryParamsPolicy
 	FollowRedirectsInHTMLContentPolicy FollowRedirectsInHTMLContentPolicy
@@ -75,9 +69,6 @@ type DefaultFactory struct {
 
 func (f *DefaultFactory) initOptions(options ...interface{}) {
 	for _, option := range options {
-		if wt, ok := option.(WarningTracker); ok {
-			f.WarningTracker = wt
-		}
 		if instance, ok := option.(IgnoreLinkPolicy); ok {
 			f.IgnoreLinkPolicy = instance
 		}
@@ -124,10 +115,6 @@ func (f *DefaultFactory) RemoveQueryParamFromLinkURL(ctx context.Context, url *u
 	}
 
 	return false, ""
-}
-
-// OnWarning is the default function if nothing else is provided in initOptions()
-func (f *DefaultFactory) OnWarning(ctx context.Context, code string, message string) {
 }
 
 // TraverseLink creates a content instance from the given URL
