@@ -2,7 +2,8 @@ package link
 
 import (
 	"context"
-	"net/http"
+	"fmt"
+	"github.com/spf13/afero"
 	"net/url"
 	"os"
 	"path"
@@ -16,17 +17,32 @@ type LinkSuite struct {
 	suite.Suite
 	factory             *DefaultFactory
 	followHTMLRedirects bool
+	rootFS              afero.Fs
+	fileNum             uint
 }
 
 func (suite *LinkSuite) SetupSuite() {
 	suite.factory = NewFactory(suite)
+	suite.rootFS = afero.NewOsFs()
 }
 
 func (suite *LinkSuite) TearDownSuite() {
 }
 
-func (suite *LinkSuite) DownloadContent(ctx context.Context, url *url.URL, resp *http.Response, typ resource.Type) (bool, resource.Attachment, error) {
-	return resource.DownloadFile(ctx, suite.factory, url, resp, typ)
+// CreateFile satisfies FileAttachmentPolicy method
+func (suite *LinkSuite) CreateFile(ctx context.Context, url *url.URL, t resource.Type) (afero.Fs, afero.File, error) {
+	pathAndFileName := fmt.Sprintf("tempFile-%d", suite.fileNum)
+	suite.fileNum++
+	destFile, err := suite.rootFS.Create(pathAndFileName)
+	if err != nil {
+		return suite.rootFS, nil, err
+	}
+	return suite.rootFS, destFile, nil
+}
+
+// AutoAssignExtension satisfies FileAttachmentPolicy method
+func (suite LinkSuite) AutoAssignExtension(ctx context.Context, url *url.URL, t resource.Type) bool {
+	return true
 }
 
 func (suite *LinkSuite) FollowRedirectsInHTMLContent(context.Context, *url.URL) bool {

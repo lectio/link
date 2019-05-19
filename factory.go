@@ -2,13 +2,10 @@ package link
 
 import (
 	"context"
-	"crypto/sha1"
 	"fmt"
 	"github.com/lectio/resource"
 	"golang.org/x/xerrors"
 	"net/url"
-	"os"
-	"path"
 	"regexp"
 	"time"
 )
@@ -17,6 +14,7 @@ import (
 type Link interface {
 	OriginalURL() string
 	FinalURL() (*url.URL, error)
+	Traversable(warn func(code, message string)) bool
 }
 
 // Factory is a lifecycle manager for URL-based resources
@@ -37,8 +35,6 @@ func NewFactory(options ...interface{}) *DefaultFactory {
 
 	f.CleanLinkQueryParamsPolicy = f         // we implemented a default version
 	f.FollowRedirectsInHTMLContentPolicy = f // we implemented a default version
-
-	f.DownloadAttachmentsStoragePolicy = f
 
 	f.initOptions(options...)
 
@@ -61,11 +57,6 @@ type FollowRedirectsInHTMLContentPolicy interface {
 	FollowRedirectsInHTMLContent(context.Context, *url.URL) bool
 }
 
-type FileStoragePolicy interface {
-	FileStoragePath(context.Context) string
-	FileName(ctx context.Context, suggested string) string
-}
-
 type WarningTracker interface {
 	OnWarning(ctx context.Context, code, message string)
 }
@@ -79,7 +70,7 @@ type DefaultFactory struct {
 	IgnoreLinkPolicy                   IgnoreLinkPolicy
 	CleanLinkQueryParamsPolicy         CleanLinkQueryParamsPolicy
 	FollowRedirectsInHTMLContentPolicy FollowRedirectsInHTMLContentPolicy
-	DownloadAttachmentsStoragePolicy   FileStoragePolicy
+	AttachmentsCreator                 resource.FileAttachmentCreator
 }
 
 func (f *DefaultFactory) initOptions(options ...interface{}) {
@@ -96,8 +87,8 @@ func (f *DefaultFactory) initOptions(options ...interface{}) {
 		if instance, ok := option.(FollowRedirectsInHTMLContentPolicy); ok {
 			f.FollowRedirectsInHTMLContentPolicy = instance
 		}
-		if instance, ok := option.(FileStoragePolicy); ok {
-			f.DownloadAttachmentsStoragePolicy = instance
+		if instance, ok := option.(resource.FileAttachmentCreator); ok {
+			f.AttachmentsCreator = instance
 		}
 	}
 }
@@ -137,32 +128,6 @@ func (f *DefaultFactory) RemoveQueryParamFromLinkURL(ctx context.Context, url *u
 
 // OnWarning is the default function if nothing else is provided in initOptions()
 func (f *DefaultFactory) OnWarning(ctx context.Context, code string, message string) {
-}
-
-// CreateFile satisfies resource.FileAttachmentCreator method
-func (f *DefaultFactory) CreateFile(ctx context.Context, url *url.URL, t resource.Type) (*os.File, error) {
-	pathAndFileName := path.Join(f.FileStoragePath(ctx), f.FileName(ctx, url.String()))
-	destFile, err := os.Create(pathAndFileName)
-	if err != nil {
-		xerrors.Errorf("Unable to create file %q: %w", pathAndFileName, err)
-	}
-	return destFile, nil
-}
-
-// AutoAssignExtension satisfies resource.FileAttachmentCreator method
-func (f *DefaultFactory) AutoAssignExtension(context.Context, *url.URL, resource.Type) bool {
-	return true
-}
-
-func (f *DefaultFactory) FileStoragePath(context.Context) string {
-	return "" // current directory?
-}
-
-func (f *DefaultFactory) FileName(ctx context.Context, suggested string) string {
-	h := sha1.New()
-	h.Write([]byte(suggested))
-	bs := h.Sum(nil)
-	return fmt.Sprintf("%x", bs)
 }
 
 // TraverseLink creates a content instance from the given URL
